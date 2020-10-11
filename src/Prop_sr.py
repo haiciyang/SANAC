@@ -19,6 +19,7 @@ class Prop_Model(nn.Module):
         self.scale = scale
         self.sr = sr
         self.ratio = torch.Tensor([ratio])
+        self.max_score = 0
         
 #         self.mask = torch.rand((d, 512), device = 'cuda:0', requires_grad = True)
 

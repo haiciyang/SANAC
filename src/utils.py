@@ -40,9 +40,8 @@ def SDR(s, sr, cuda = False): # input (50, 512), (50, 512)
     else:
         return sdr.cpu().data.numpy()
 
-def melMSELoss(s, sr): # input waveform(torch.Tensor)
+def melMSELoss(s, sr, n_mels = [8, 16, 32, 128]): # input waveform(torch.Tensor)
     
-    n_mels = [8, 16, 32, 128]
     loss = 0
     eps = 1e-20
     mse = nn.MSELoss()
@@ -53,7 +52,53 @@ def melMSELoss(s, sr): # input waveform(torch.Tensor)
         sr_mel = torch.log(sr_mel + eps)
         m = mse(s_mel, sr_mel)
         loss += m
-    return loss/len(n_mels)    
+    return loss/len(n_mels) 
+
+def melMSELoss_short(s, sr, n_mels = [8, 16, 32, 128]): 
+    
+    assert s.shape[1] == 512
+    assert sr.shape[1] == 512
+    loss = 0
+    eps = 1e-20
+    mse = nn.MSELoss().cuda()
+    s = s.cuda()
+    sr = sr.cuda()
+    for n in n_mels:
+        melspec = torchaudio.transforms.MelSpectrogram(n_fft=512, n_mels=n).cuda()
+        s_mel = torch.mean(melspec(s), -1)
+        sr_mel = torch.mean(melspec(sr), -1)
+        # s_mel.shape -> [bt, n]
+        s_mel = torch.log(s_mel + eps)
+        sr_mel = torch.log(sr_mel + eps)
+        mse_score = 0
+        for i in range(len(s_mel)):
+            error = mse(s_mel[i], sr_mel[i])
+            mse_score += error
+#         m = mse(s_mel, sr_mel)
+        loss += mse_score
+    return loss/len(n_mels)  
+
+def weighted_stft_loss(s, sr): # input waveform(torch.Tensor)
+    
+    loss = 0
+    eps = 1e-20
+    mse = nn.MSELoss()
+    spec = torchaudio.transforms.Spectrogram(n_fft=512, hop_length=512)
+    
+
+    s_mel = torch.mean(spec(s), -1)
+    sr_mel = torch.mean(spec(sr), -1)
+    s_mel = torch.log(s_mel + eps)
+    sr_mel = torch.log(sr_mel + eps)
+    a = torch.tensor(1.01)
+    mse_score = 0
+    for i in range(len(s_mel)):
+        error = mse(s_mel[i], sr_mel[i])
+        mse_score += torch.pow(a,2) * error
+#         m = mse(s_mel, sr_mel)
+    loss += mse_score
+    
+    return loss   
 
 def rebuild(output, overlap = 64):
     output = output.cpu()
@@ -92,10 +137,14 @@ def test_newData(soft, test_loader, model):
 #         sdr_list_n.append(SISDR(noise, n_h))
         
         rs = rebuild(s_h).unsqueeze(dim = 0)
-        rn = rebuild(n_h).unsqueeze(dim = 0)
-        
         rs_sdr = SISDR(wave_s, rs)
-        rx_sdr = SISDR(wave_x, rs+rn)
+        if not isinstance(n_h, type(None)):
+            rn = rebuild(n_h).unsqueeze(dim = 0)
+            rx_sdr = SISDR(wave_x, rs+rn)
+        else:
+            rx_sdr = rx_sdr = SISDR(wave_x, rs)
+        
+        
         sdr_list_rs.append(rs_sdr)
         sdr_list_rx.append(rx_sdr)
         
@@ -104,10 +153,14 @@ def test_newData(soft, test_loader, model):
         
         if max_rs_sdr < rs_sdr:
             max_rs_sdr = rs_sdr
-            max_rs = (wave_x, rs, rn)
+            if not isinstance(n_h, type(None)): 
+                max_rs = (wave_x, rs, rn)
+            else:
+                max_rs = (wave_x, rs)
 #         if max_rx_sdr < rx_sdr:
 #             max_rx_sdr = rx_sdr
 #             max_rx = (rs, rn)
+#         break
          
     
     s_score = np.mean(sdr_list_s) 
@@ -151,7 +204,7 @@ def entropy_prob(prob): # prob (bs, 512, num_m)
 
 def mulaw_loss(s, sr, f_SDR):
     import math
-    mu = 255 # 
+    mu = 1024 # 
     s = s * (torch.log(1 + mu*torch.abs(s))/(math.log(1+mu))) # s or tanh(s)
     sr = sr * (torch.log(1 + mu*torch.abs(sr))/(math.log(1+mu))) # s or tanh(s)
     

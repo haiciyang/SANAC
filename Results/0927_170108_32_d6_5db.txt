@@ -308,3 +308,149 @@ epoch_98| Time:827 | Control:1 | Stage: 2 | Itermax: 2 | etp:1
 |Test-hard s: -1.58, rs: 10.57, rx: 13.10, diff: 4.54 
           |Entropy : 3.01, 1.01
 epoch_99| Time:856 | Control:1 | Stage: 2 | Itermax: 0 | etp:1 
+Continue
+ c_1stDiv 30
+ c_2ndDiv 60
+ centroid_d 6
+ sr True
+ bitrate 24
+ lr 0.0001
+ weight1 0.2
+ weight2 0.016666666666666666
+ ratio 0.3333333333333333
+
+Model Name:0927_170108_32_d6_5db
+Model Loaded:
+epoch_0| Time:577 | Control:1 | Stage: 2 | Itermax: 0 | etp:0 
+|Test-hard s: -2.55, rs: 9.79, rx: 11.27, diff: 3.75 
+          |Entropy : 2.15, 0.78
+Continue
+ c_1stDiv 30
+ c_2ndDiv 60
+ centroid_d 6
+ sr True
+ bitrate 32
+ lr 0.0001
+ weight1 0.2
+ weight2 0.016666666666666666
+ ratio 0.3333333333333333
+
+Model Name:0927_170108_32_d6_5db
+Model Loaded:
+epoch_0| Time:574 | Control:1 | Stage: 2 | Itermax: 0 | etp:0 
+|Test-hard s: -1.54, rs: 10.52, rx: 13.05, diff: 4.49 
+          |Entropy : 3.02, 0.98
+epoch_1| Time:874 | Control:1 | Stage: 2 | Itermax: 1 | etp:1 
+|Test-hard s: -1.18, rs: 10.51, rx: 12.98, diff: 4.47 
+          |Entropy : 3.09, 0.93
+epoch_2| Time:798 | Control:1 | Stage: 2 | Itermax: 2 | etp:1 
+|Test-hard s: -1.27, rs: 10.57, rx: 13.07, diff: 4.53 
+          |Entropy : 3.02, 0.99
+epoch_3| Time:642 | Control:1 | Stage: 1 | Itermax: 3 | etp:1 
+|Test-hard s: -3.72, rs: 8.87, rx: 10.40, diff: 2.83 
+          |Entropy : 3.05, 0.96
+epoch_4| Time:670 | Control:1 | Stage: 1 | Itermax: 4 | etp:1 
+|Test-hard s: -3.55, rs: 8.97, rx: 10.49, diff: 2.93 
+          |Entropy : 3.06, 0.92
+epoch_5| Time:891 | Control:1 | Stage: 2 | Itermax: 0 | etp:1 
+|Test-hard s: -1.25, rs: 10.55, rx: 13.05, diff: 4.51 
+          |Entropy : 3.03, 0.96
+epoch_6| Time:890 | Control:1 | Stage: 2 | Itermax: 1 | etp:1 
+|Test-hard s: -1.47, rs: 10.56, rx: 13.13, diff: 4.53 
+          |Entropy : 3.09, 0.92
+epoch_7| Time:888 | Control:1 | Stage: 2 | Itermax: 0 | etp:1 
+|Test-hard s: -1.21, rs: 10.66, rx: 13.18, diff: 4.62 
+          |Entropy : 3.01, 0.98
+epoch_8| Time:885 | Control:1 | Stage: 2 | Itermax: 0 | etp:1 
+|Test-hard s: -1.58, rs: 10.61, rx: 13.11, diff: 4.58 
+          |Entropy : 3.07, 0.94
+epoch_9| Time:917 | Control:1 | Stage: 2 | Itermax: 1 | etp:1 
+|Test-hard s: -1.67, rs: 10.53, rx: 13.12, diff: 4.50 
+          |Entropy : 3.07, 0.98
+epoch_10| Time:886 | Control:1 | Stage: 2 | Itermax: 2 | etp:1 
+|Test-hard s: -1.50, rs: 10.65, rx: 13.17, diff: 4.62 
+          |Entropy : 3.09, 0.94
+epoch_11| Time:880 | Control:1 | Stage: 2 | Itermax: 3 | etp:1 
+|Test-hard s: -1.56, rs: 10.60, rx: 13.03, diff: 4.56 
+          |Entropy : 3.09, 0.92
+epoch_12| Time:879 | Control:1 | Stage: 2 | Itermax: 4 | etp:1 
+|Test-hard s: -0.91, rs: 10.55, rx: 13.01, diff: 4.51 
+          |Entropy : 3.02, 0.98
+epoch_13| Time:882 | Control:1 | Stage: 2 | Itermax: 5 | etp:1 
+|Test-hard s: -1.38, rs: 10.58, rx: 13.00, diff: 4.54 
+          |Entropy : 3.03, 0.94
+epoch_14| Time:906 | Control:1 | Stage: 2 | Itermax: 6 | etp:1 
+|Test-hard s: -1.47, rs: 10.63, rx: 13.08, diff: 4.59 
+          |Entropy : 3.00, 1.01
+epoch_15| Time:873 | Control:1 | Stage: 2 | Itermax: 7 | etp:1 
+|Test-hard s: -1.81, rs: 10.59, rx: 13.02, diff: 4.55 
+          |Entropy : 2.99, 1.01
+epoch_16| Time:853 | Control:1 | Stage: 2 | Itermax: 8 | etp:1 
+|Test-hard s: -1.67, rs: 10.63, rx: 13.14, diff: 4.60 
+          |Entropy : 3.02, 0.98
+epoch_17| Time:853 | Control:1 | Stage: 2 | Itermax: 9 | etp:1 
+|Test-hard s: -0.99, rs: 10.72, rx: 13.27, diff: 4.69 
+          |Entropy : 3.03, 0.97
+epoch_18| Time:865 | Control:1 | Stage: 2 | Itermax: 0 | etp:1 
+|Test-hard s: -1.37, rs: 10.69, rx: 13.19, diff: 4.66 
+          |Entropy : 2.97, 1.02
+epoch_19| Time:874 | Control:1 | Stage: 2 | Itermax: 1 | etp:1 
+|Test-hard s: -1.71, rs: 10.64, rx: 13.09, diff: 4.61 
+          |Entropy : 3.05, 0.97
+epoch_20| Time:896 | Control:1 | Stage: 2 | Itermax: 2 | etp:1 
+|Test-hard s: -1.31, rs: 10.64, rx: 13.16, diff: 4.60 
+          |Entropy : 2.97, 1.02
+epoch_21| Time:911 | Control:1 | Stage: 2 | Itermax: 3 | etp:1 
+|Test-hard s: -1.25, rs: 10.66, rx: 13.06, diff: 4.62 
+          |Entropy : 3.02, 0.96
+epoch_22| Time:875 | Control:1 | Stage: 2 | Itermax: 4 | etp:1 
+|Test-hard s: -1.41, rs: 10.64, rx: 13.09, diff: 4.60 
+          |Entropy : 3.06, 0.94
+epoch_23| Time:870 | Control:1 | Stage: 2 | Itermax: 5 | etp:1 
+|Test-hard s: -1.54, rs: 10.66, rx: 13.16, diff: 4.63 
+          |Entropy : 3.03, 0.97
+epoch_24| Time:873 | Control:1 | Stage: 2 | Itermax: 6 | etp:1 
+|Test-hard s: -1.42, rs: 10.70, rx: 13.20, diff: 4.66 
+          |Entropy : 3.09, 0.89
+epoch_25| Time:870 | Control:1 | Stage: 2 | Itermax: 7 | etp:1 
+|Test-hard s: -1.02, rs: 10.67, rx: 13.07, diff: 4.63 
+          |Entropy : 3.09, 0.89
+epoch_26| Time:862 | Control:1 | Stage: 2 | Itermax: 8 | etp:1 
+|Test-hard s: -1.50, rs: 10.67, rx: 13.16, diff: 4.64 
+          |Entropy : 3.00, 1.01
+epoch_27| Time:885 | Control:1 | Stage: 2 | Itermax: 9 | etp:1 
+|Test-hard s: -1.10, rs: 10.66, rx: 13.14, diff: 4.63 
+          |Entropy : 2.98, 1.00
+epoch_28| Time:913 | Control:1 | Stage: 2 | Itermax: 10 | etp:1 
+|Test-hard s: -1.33, rs: 10.70, rx: 13.08, diff: 4.66 
+          |Entropy : 2.99, 1.02
+epoch_29| Time:894 | Control:1 | Stage: 2 | Itermax: 11 | etp:1 
+|Test-hard s: -1.43, rs: 10.70, rx: 13.07, diff: 4.66 
+          |Entropy : 2.99, 1.01
+epoch_30| Time:889 | Control:1 | Stage: 2 | Itermax: 12 | etp:1 
+|Test-hard s: -1.03, rs: 10.71, rx: 13.18, diff: 4.67 
+          |Entropy : 3.10, 0.88
+epoch_31| Time:884 | Control:1 | Stage: 2 | Itermax: 13 | etp:1 
+|Test-hard s: -0.74, rs: 10.61, rx: 12.89, diff: 4.58 
+          |Entropy : 3.05, 0.92
+epoch_32| Time:888 | Control:1 | Stage: 2 | Itermax: 14 | etp:1 
+|Test-hard s: -1.17, rs: 10.66, rx: 13.07, diff: 4.63 
+          |Entropy : 3.01, 0.97
+epoch_33| Time:914 | Control:1 | Stage: 2 | Itermax: 15 | etp:1 
+|Test-hard s: -0.99, rs: 10.75, rx: 13.17, diff: 4.71 
+          |Entropy : 2.91, 0.97
+epoch_34| Time:913 | Control:1 | Stage: 2 | Itermax: 16 | etp:1 
+|Test-hard s: -1.77, rs: 10.72, rx: 13.15, diff: 4.68 
+          |Entropy : 3.01, 1.00
+epoch_35| Time:874 | Control:1 | Stage: 2 | Itermax: 17 | etp:1 
+|Test-hard s: -1.23, rs: 10.65, rx: 12.98, diff: 4.61 
+          |Entropy : 2.98, 1.01
+epoch_36| Time:890 | Control:1 | Stage: 2 | Itermax: 18 | etp:1 
+|Test-hard s: -1.42, rs: 10.73, rx: 13.07, diff: 4.70 
+          |Entropy : 3.05, 0.96
+epoch_37| Time:884 | Control:1 | Stage: 2 | Itermax: 19 | etp:1 
+|Test-hard s: -1.84, rs: 10.68, rx: 13.10, diff: 4.64 
+          |Entropy : 2.99, 1.01
+epoch_38| Time:883 | Control:1 | Stage: 2 | Itermax: 20 | etp:1 
+|Test-hard s: -1.39, rs: 10.68, rx: 13.01, diff: 4.64 
+          |Entropy : 3.01, 0.99

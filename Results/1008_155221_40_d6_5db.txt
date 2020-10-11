@@ -1,0 +1,59 @@
+Mel Loss; Adjusted ratio
+ c_1stDiv 30
+ c_2ndDiv 60
+ centroid_d 6
+ sr True
+ bitrate 40
+ lr 0.0005
+ weight1 0.2
+ weight2 0.016666666666666666
+ ratio 0.4
+ mel_weight 0.16666666666666666
+
+Model Name:1008_155221_40_d6_5db
+Model Loaded:Prop
+epoch_0| Time:380 | Control:0 | Stage: 0 | Itermax: 0 | etp:0 
+|Test-hard s: -2.65, rs: 8.64, rx: 17.05, diff: 2.61 
+          |Entropy : 0.00, 0.00
+epoch_1| Time:501 | Control:0 | Stage: 0 | Itermax: 0 | etp:0 
+|Test-hard s: -1.78, rs: 9.39, rx: 18.33, diff: 3.36 
+          |Entropy : 0.00, 0.00
+epoch_2| Time:508 | Control:0 | Stage: 0 | Itermax: 0 | etp:0 
+|Test-hard s: -14.15, rs: -6.37, rx: -7.31, diff: -12.40 
+          |Entropy : 0.00, 0.00
+epoch_3| Time:584 | Control:0 | Stage: 1 | Itermax: 0 | etp:0 
+|Test-hard s: -6.74, rs: 5.49, rx: 8.11, diff: -0.55 
+          |Entropy : 3.27, 3.29
+epoch_4| Time:597 | Control:0 | Stage: 1 | Itermax: 0 | etp:0 
+|Test-hard s: -3.21, rs: 7.98, rx: 11.02, diff: 1.94 
+          |Entropy : 3.93, 2.48
+epoch_5| Time:592 | Control:0 | Stage: 1 | Itermax: 0 | etp:0 
+|Test-hard s: -5.93, rs: 7.67, rx: 9.03, diff: 1.63 
+          |Entropy : 2.59, 1.84
+epoch_6| Time:586 | Control:0 | Stage: 1 | Itermax: 1 | etp:0 
+|Test-hard s: -26.67, rs: -42.04, rx: -42.83, diff: -48.07 
+          |Entropy : 0.00, 0.00
+epoch_7| Time:583 | Control:0 | Stage: 1 | Itermax: 2 | etp:0 
+|Test-hard s: -25.79, rs: -43.61, rx: -46.13, diff: -49.64 
+          |Entropy : 0.00, 0.00
+epoch_8| Time:736 | Control:1 | Stage: 1 | Itermax: 0 | etp:1 
+|Test-hard s: nan, rs: nan, rx: nan, diff: nan 
+          |Entropy : 0.00, 0.00
+epoch_9| Time:739 | Control:1 | Stage: 1 | Itermax: 1 | etp:1 
+|Test-hard s: nan, rs: nan, rx: nan, diff: nan 
+          |Entropy : 0.00, 0.00
+epoch_10| Time:742 | Control:1 | Stage: 1 | Itermax: 2 | etp:1 
+|Test-hard s: nan, rs: nan, rx: nan, diff: nan 
+          |Entropy : 0.00, 0.00
+epoch_11| Time:743 | Control:1 | Stage: 1 | Itermax: 3 | etp:1 
+|Test-hard s: nan, rs: nan, rx: nan, diff: nan 
+          |Entropy : 0.00, 0.00
+epoch_12| Time:739 | Control:1 | Stage: 1 | Itermax: 4 | etp:1 
+|Test-hard s: nan, rs: nan, rx: nan, diff: nan 
+          |Entropy : 0.00, 0.00
+epoch_13| Time:982 | Control:1 | Stage: 2 | Itermax: 5 | etp:1 
+|Test-hard s: nan, rs: nan, rx: nan, diff: nan 
+          |Entropy : 0.00, 0.00
+epoch_14| Time:979 | Control:1 | Stage: 2 | Itermax: 6 | etp:1 
+|Test-hard s: nan, rs: nan, rx: nan, diff: nan 
+          |Entropy : 0.00, 0.00

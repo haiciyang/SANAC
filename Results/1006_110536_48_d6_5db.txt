@@ -1,0 +1,17 @@
+Mel-loss on short frames; mel_weight=1/12
+ c_1stDiv 30
+ c_2ndDiv 60
+ centroid_d 6
+ sr True
+ bitrate 48
+ lr 0.0001
+ weight1 0.2
+ weight2 0.016666666666666666
+ ratio 0.3333333333333333
+ ratio 0.08333333333333333
+
+Model Name:1006_110536_48_d6_5db
+Model Loaded:Prop
+epoch_0| Time:1666 | Control:0 | Stage: 0 | Itermax: 0 | etp:0 
+|Test-hard s: -3.97, rs: 8.04, rx: 11.94, diff: 2.01 
+          |Entropy : 0.00, 0.00

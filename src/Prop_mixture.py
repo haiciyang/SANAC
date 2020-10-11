@@ -6,11 +6,11 @@ import numpy as np
 from Blocks import BasicBlock, Bottleneck, ChannelChange
 
 
-class Prop(nn.Module):
+class Prop_mixture(nn.Module):
     def __init__(self, block = None, scale = 1, filters = 40, d_s = 15, d_n = 15, f2 = 50, num_m = 32, \
                  sr =False, ratio = 0.75):
         
-        super(Prop, self).__init__()
+        super(Prop_mixture, self).__init__()
         
         self.filters = filters
         self.d_s = d_s
@@ -19,8 +19,7 @@ class Prop(nn.Module):
         self.scale = scale
         self.sr = sr
         self.ratio = torch.Tensor([ratio])
-        self.max_score = 0 # the best score saved by the model
-        self.etp = 0 # butten for entropy control 0-off; 1-on
+        self.max_score = 0
         
 #         self.mask = torch.rand((d, 512), device = 'cuda:0', requires_grad = True)
 
@@ -90,7 +89,7 @@ class Prop(nn.Module):
 
         dec_layers = []
         for i in range(2):
-            dec_layers.append(block(f2//2, f2//2))
+            dec_layers.append(block(f2, f2))
         self.dec_2s = nn.Sequential(*dec_layers)
 
 #         dec_layers = []
@@ -123,7 +122,7 @@ class Prop(nn.Module):
 
         self.fc_1s = nn.Linear(512 * self.d_s, 512)
 #         self.fc_1n = nn.Linear(512 * self.d_n, 512)
-        self.fc_2s = nn.Linear(512 * f2//2, 512)
+        self.fc_2s = nn.Linear(512 * f2, 512)
 #         self.fc_2n = nn.Linear(512 * f2//2, 512)
     
     def forward(self, x, soft=True): # Coding first
@@ -183,18 +182,13 @@ class Prop(nn.Module):
                     
                     code = torch.cat((code_s, code_n), 1)  # f2//2 -> f2
                     code = self.addup_sr_out(code)         # f2
-                    code_s = code[:, :code.shape[1]//2, :] # f2 -> f2//2
-                    code_n = code[:, code.shape[1]//2:, :]
                     
-                    s_hat = self.dec_2s(code_s) # f2//2
-                    n_hat = self.dec_2s(code_n) # 
+                    x_hat = self.dec_2s(code) # f2//2
 
-                    s_hat = s_hat.view(-1, s_hat.shape[1] * s_hat.shape[-1])
-                    n_hat = n_hat.view(-1, n_hat.shape[1] * n_hat.shape[-1])
-                    s_hat = torch.tanh(self.fc_2s(s_hat))  # f2//2
-                    n_hat = torch.tanh(self.fc_2s(n_hat))
+                    x_hat = x_hat.view(-1, x_hat.shape[1] * x_hat.shape[-1]) #f2//2
+                    x_hat = torch.tanh(self.fc_2s(x_hat))
                     
-                    return s_hat, n_hat , arg_idx_s, arg_idx_n     
+                    return x_hat, None, arg_idx_s, arg_idx_n     
 
         if not self.sr:
             s_hat = self.dec_1s(code_s) # d_s 

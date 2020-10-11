@@ -6,7 +6,7 @@ import numpy as np
 from IPython.display import clear_output
 
 class Data_TIMIT(data.Dataset):
-    def __init__(self, task, mix_num = 1, overlap = 64):
+    def __init__(self, task, mix_num = 1, overlap = 64, level=0):
         
         self.task = task
         # Set small datasets
@@ -68,7 +68,7 @@ class Data_TIMIT(data.Dataset):
                 break     
             clear_output(wait=False)
             print(i, flush=True)
-            self.load_trim(uttr)
+            self.load_trim(uttr, level=level)
             
 #             c, x, sub_c, sub_x = self.load_trim(uttr, mix_num)
 #             c, x, c_l, x_l = self.load_trim(uttr, mix_num)
@@ -101,11 +101,11 @@ class Data_TIMIT(data.Dataset):
         print('Data size:', len(self.data_c))
         
     
-    def load_trim(self, wavpath, size = 1):
+    def load_trim(self, wavpath, size = 1, level = 0):
         
         try:
             c, cr = librosa.load(wavpath, sr = None)
-            c /= np.std(c)
+            c /= np.std(c) # Normalizing c std=1
         except OSError:
             print('errorfile:',wavpath)
             return
@@ -119,9 +119,12 @@ class Data_TIMIT(data.Dataset):
 #             self.array_append(c/max(c), n/max(c))
         
 #         if self.task == 'train':
+        
+        scalar = 10.0 ** (0.05 * (level))
+        
         for n in self.noise:
             n = n[len(n)//2:len(n)//2+len(c)]
-            n /= np.std(n)*2
+            n /= np.std(n)* scalar
             self.array_append(c/max(c), n/max(c))
         
     def array_append(self, c, n):
