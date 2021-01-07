@@ -78,6 +78,18 @@ def melMSELoss_short(s, sr, n_mels = [8, 16, 32, 128]):
         loss += mse_score
     return loss/len(n_mels)  
 
+def l1Loss(s, sr): # input waveform(torch.Tensor)
+    
+    length = min(len(s),len(sr))
+    s = s[:length]
+    sr = sr[:length]
+    
+    loss = torch.sum(torch.abs(s-sr))/length
+    
+
+    return loss
+
+
 def weighted_stft_loss(s, sr): # input waveform(torch.Tensor)
     
     loss = 0
@@ -110,17 +122,102 @@ def rebuild(output, overlap = 64):
     
     return wave
 
-def test_newData(soft, test_loader, model):
+def rebuild_extraWindow(output, overlap = 32):
+    
+    output = output.detach().cpu().data.numpy()
+    len_wav = len(output) * (512 - overlap) + overlap
+    
+    window = np.hamming(overlap*2) 
+    window = np.concatenate((window[:overlap],np.ones(512-overlap*2),window[overlap:]))
+    window = window.reshape(1,-1)
+    window = window.astype(np.float32)
+    
+    output *= window
+    wave = np.zeros(len_wav)
+    for i in range(len(output)):
+#         print(i)
+        wave[i*(512-overlap):i*(512-overlap)+512] += output[i]
+    
+    return torch.tensor(wave, dtype=torch.float).requires_grad_()
+
+def test_newData(soft, test_loader, model, window_in_data, debugging):
+    
+    with torch.no_grad():
 #     model.eval()
-    sdr_list_s = []
-#     sdr_list_n = []
-    sdr_list_rs = []
-    sdr_list_rx = []
-    sdr_list_diff = []
-    max_rs_sdr = 0
+        sdr_list_s = []
+    #     sdr_list_n = []
+        sdr_list_rs = []
+        sdr_list_rx = []
+        sdr_list_diff = []
+        max_rs_sdr = 0
+        max_rx_sdr = 0
+        max_rs = None
+        max_rx = None
+        if window_in_data:
+            rebuild_f = rebuild
+        else:
+            rebuild_f = rebuild_extraWindow
+
+        i = 0
+        for wave_s, wave_x, source, mixture in test_loader: 
+
+            source = source[0]
+            mixture = mixture[0]
+    #         print(data)
+            noise = (mixture-source).cuda()
+            source = source.cuda()
+            mixture = mixture.cuda()
+            s_h, n_h, arg_s, arg_n = model(mixture, soft=soft)
+
+            sdr_list_s.append(SISDR(source, s_h))    
+    #         sdr_list_n.append(SISDR(noise, n_h))
+
+
+            rs = rebuild_f(s_h).unsqueeze(dim = 0)
+            rs_sdr = SISDR(wave_s, rs)
+            if not isinstance(n_h, type(None)):
+                rn = rebuild_f(n_h).unsqueeze(dim = 0)
+                rx_sdr = SISDR(wave_x, rs+rn)
+            else:
+                rx_sdr = SISDR(wave_x, rs)
+
+
+            sdr_list_rs.append(rs_sdr)
+            sdr_list_rx.append(rx_sdr)
+
+            start_sdr = SISDR(wave_s, wave_x/max(wave_x[0]))
+            sdr_list_diff.append(rs_sdr-start_sdr)
+
+            if max_rs_sdr < rs_sdr:
+                max_rs_sdr = rs_sdr
+                if not isinstance(n_h, type(None)): 
+                    max_rs = (wave_x, rs, rn)
+                else:
+                    max_rs = (wave_x, rs)
+
+            if debugging:
+                break
+
+
+        s_score = np.mean(sdr_list_s) 
+    #     n_score = np.mean(sdr_list_n)
+        rs_score = np.mean(sdr_list_rs)
+        rx_score = np.mean(sdr_list_rx)
+        diff_score = np.mean(sdr_list_diff)
+
+    return s_score, rs_score, rx_score, diff_score, max_rs, arg_s, arg_n
+
+def test_base(soft, test_loader, model, window_in_data, debugging):
+
+    x_sdr_list = []
+    rx_sdr_list = []
     max_rx_sdr = 0
-    max_rs = None
     max_rx = None
+    
+    if window_in_data:
+        rebuild_f = rebuild
+    else:
+        rebuild_f = rebuild_extraWindow
 
     i = 0
     for wave_s, wave_x, source, mixture in test_loader: 
@@ -131,46 +228,64 @@ def test_newData(soft, test_loader, model):
         noise = (mixture-source).cuda()
         source = source.cuda()
         mixture = mixture.cuda()
-        s_h, n_h, arg_s, arg_n = model(mixture, soft=soft)
+        x_h, arg = model(mixture, soft=soft)
         
-        sdr_list_s.append(SISDR(source, s_h))    
-#         sdr_list_n.append(SISDR(noise, n_h))
+        x_sdr_list.append(SISDR(mixture, x_h))
         
-        rs = rebuild(s_h).unsqueeze(dim = 0)
-        rs_sdr = SISDR(wave_s, rs)
-        if not isinstance(n_h, type(None)):
-            rn = rebuild(n_h).unsqueeze(dim = 0)
-            rx_sdr = SISDR(wave_x, rs+rn)
-        else:
-            rx_sdr = rx_sdr = SISDR(wave_x, rs)
-        
-        
-        sdr_list_rs.append(rs_sdr)
-        sdr_list_rx.append(rx_sdr)
-        
-        start_sdr = SISDR(wave_s, wave_x/max(wave_x[0]))
-        sdr_list_diff.append(rs_sdr-start_sdr)
-        
-        if max_rs_sdr < rs_sdr:
-            max_rs_sdr = rs_sdr
-            if not isinstance(n_h, type(None)): 
-                max_rs = (wave_x, rs, rn)
-            else:
-                max_rs = (wave_x, rs)
-#         if max_rx_sdr < rx_sdr:
-#             max_rx_sdr = rx_sdr
-#             max_rx = (rs, rn)
-#         break
-         
-    
-    s_score = np.mean(sdr_list_s) 
-#     n_score = np.mean(sdr_list_n)
-    rs_score = np.mean(sdr_list_rs)
-    rx_score = np.mean(sdr_list_rx)
-    diff_score = np.mean(sdr_list_diff)
-    
-    return s_score, rs_score, rx_score, diff_score, max_rs, arg_s, arg_n
+        rx = rebuild_f(x_h).unsqueeze(dim = 0)
+        rx_sdr = SISDR(wave_x, rx)
 
+        rx_sdr_list.append(rx_sdr)
+        
+        if max_rx_sdr < rx_sdr:
+            max_rx_sdr = rx_sdr
+            max_rx = (wave_x, rx)
+
+#         if debugging:
+#             break
+    
+    rx_score = np.mean(rx_sdr_list)
+    x_score = np.mean(x_sdr_list)
+    
+    return  x_score, rx_score, max_rx, arg
+
+def test_base_clean(soft, test_loader, model, window_in_data, debugging):
+
+    x_sdr_list = []
+    rx_sdr_list = []
+    max_rx_sdr = 0
+    max_rx = None
+    
+    if window_in_data:
+        rebuild_f = rebuild
+    else:
+        rebuild_f = rebuild_extraWindow
+
+    i = 0
+    for wave, inp in test_loader: 
+
+        inp = inp[0].cuda()
+        x_h, arg = model(inp, soft=soft)
+        x_h = x_h[:, 0, :]
+        
+        x_sdr_list.append(SISDR(inp, x_h))
+        
+        rx = rebuild_f(x_h).unsqueeze(dim = 0)
+        rx_sdr = SISDR(wave, rx)
+
+        rx_sdr_list.append(rx_sdr)
+        
+        if max_rx_sdr < rx_sdr:
+            max_rx_sdr = rx_sdr
+            max_rx = (wave, rx)
+
+        if debugging:
+            break
+    
+    rx_score = np.mean(rx_sdr_list)
+    x_score = np.mean(x_sdr_list)
+    
+    return  x_score, rx_score, max_rx, arg
 
 import collections
 

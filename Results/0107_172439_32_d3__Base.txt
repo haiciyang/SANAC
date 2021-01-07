@@ -1,0 +1,16 @@
+
+ c_1stDiv 100
+ centroid_d 3
+ sr True
+ bitrate 32
+ lr 0.0001
+ weight_mse 30
+ weight_mel 5
+ weight_etp 1 
+ window_in_data False 
+ scale 50 
+ num_m 32
+Model Name:0107_172439_32_d3__Base
+Model Loaded:Baseline_0105
+epoch_0| Time:607 | Control:0 | Stage: 0 | Itermax: 0 | etp:0 
+|Test-hard x: 22.66 rx: 28.51 |Entropy :  0.00

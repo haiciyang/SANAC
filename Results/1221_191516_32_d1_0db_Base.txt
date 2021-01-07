@@ -1,0 +1,13 @@
+New data
+ c_1stDiv 30
+ centroid_d 1
+ sr True
+ bitrate 32
+ lr 0.0001
+ weight1 0.2
+ mel_weight 0.08333333333333333
+ window_in_data False
+Model Name:1221_191516_32_d1_0db_Base
+Model Loaded:Baseline_new
+epoch_0| Time:342 | Control:0 | Stage: 0 | Itermax: 0 | etp:0 
+|Test-hard x: -29.71 rx: -46.24 |Entropy :  0.00

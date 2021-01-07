@@ -1,0 +1,14 @@
+
+ c_1stDiv 100
+ centroid_d 1
+ sr True
+ bitrate 32
+ lr 0.0001
+ weight_mse 30
+ weight_mel 5
+ weight_etp 1 
+ window_in_data False 
+ scale 50 
+ num_m 32
+Model Name:0107_172819_32_d1__Base
+Model Loaded:Baseline_0105

@@ -1,0 +1,15 @@
+For saving different stages
+ c_1stDiv 30
+ centroid_d 6
+ sr False
+ bitrate 32
+ lr 0.0001
+ weight1 0.2
+ mel_weight 0.08333333333333333
+
+Model Name:1116_155101_32_d6_0db_Base
+Model Loaded:Baseline_new
+epoch_0| Time:31 | Control:0 | Stage: 0 | Itermax: 0 | etp:0 
+|Test-hard x: -32.10 rx: -48.71 |Entropy :  0.00
+epoch_1| Time:32 | Control:0 | Stage: 0 | Itermax: 1 | etp:0 
+|Test-hard x: -29.33 rx: -31.44 |Entropy :  0.00

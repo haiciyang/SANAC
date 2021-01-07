@@ -1,0 +1,38 @@
+Mel Loss on entire utterance + mel loss
+ c_1stDiv 30
+ c_2ndDiv 60
+ centroid_d 6
+ sr True
+ bitrate 48
+ lr 0.0001
+ weight1 0.05
+ weight2 0.016666666666666666
+ ratio 0.3333333333333333
+ mel_weight 0.08333333333333333
+
+Model Name:1012_181212_48_d6_0db
+Model Loaded:Prop
+epoch_0| Time:618 | Control:0 | Stage: 0 | Itermax: 0 | etp:0 
+|Test-hard s: -6.72, rs: 4.14, rx: 15.60, diff: 4.12 
+          |Entropy : 0.00, 0.00
+epoch_1| Time:618 | Control:0 | Stage: 0 | Itermax: 0 | etp:0 
+|Test-hard s: -6.08, rs: 5.44, rx: 18.50, diff: 5.42 
+          |Entropy : 0.00, 0.00
+epoch_2| Time:618 | Control:0 | Stage: 0 | Itermax: 0 | etp:0 
+|Test-hard s: -5.90, rs: 6.09, rx: 18.83, diff: 6.08 
+          |Entropy : 0.00, 0.00
+epoch_3| Time:663 | Control:0 | Stage: 1 | Itermax: 0 | etp:0 
+|Test-hard s: -6.50, rs: 5.20, rx: 11.07, diff: 5.18 
+          |Entropy : 5.30, 3.12
+epoch_4| Time:770 | Control:0 | Stage: 1 | Itermax: 0 | etp:0 
+|Test-hard s: -6.46, rs: 5.58, rx: 12.45, diff: 5.56 
+          |Entropy : 6.12, 2.47
+epoch_5| Time:859 | Control:0 | Stage: 1 | Itermax: 0 | etp:0 
+|Test-hard s: -6.34, rs: 5.65, rx: 12.17, diff: 5.63 
+          |Entropy : 6.10, 2.71
+epoch_6| Time:842 | Control:0 | Stage: 1 | Itermax: 1 | etp:0 
+|Test-hard s: -6.30, rs: 5.79, rx: 12.01, diff: 5.77 
+          |Entropy : 5.23, 2.15
+epoch_7| Time:828 | Control:0 | Stage: 1 | Itermax: 2 | etp:0 
+|Test-hard s: -6.54, rs: 5.75, rx: 11.85, diff: 5.73 
+          |Entropy : 5.60, 2.17

@@ -1,0 +1,14 @@
+Mel Loss on entire utterance + mel loss
+ c_1stDiv 30
+ c_2ndDiv 60
+ centroid_d 6
+ sr True
+ bitrate 48
+ lr 0.0001
+ weight1 0.05
+ weight2 0.016666666666666666
+ ratio 0.3333333333333333
+ mel_weight 0.08333333333333333
+
+Model Name:1012_181130_48_d6_0db
+Model Loaded:Prop

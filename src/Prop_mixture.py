@@ -20,6 +20,7 @@ class Prop_mixture(nn.Module):
         self.sr = sr
         self.ratio = torch.Tensor([ratio])
         self.max_score = 0
+        self.etp = 0
         
 #         self.mask = torch.rand((d, 512), device = 'cuda:0', requires_grad = True)
 
@@ -160,18 +161,13 @@ class Prop_mixture(nn.Module):
                 
                     code = torch.cat((code_s, code_n), 1)
                     code = self.addup_layers(code)  # d_s + d_n -> f2
-                    code_s = code[:, :code.shape[1]//2, :]
-                    code_n = code[:, code.shape[1]//2:, :]
                     
-                    s_hat = self.dec_2s(code_s) # f2//2
-                    n_hat = self.dec_2s(code_n) # f2//2
+                    x_hat = self.dec_2s(code) # f2
 
-                    s_hat = s_hat.view(-1, s_hat.shape[1] * s_hat.shape[-1])
-                    n_hat = n_hat.view(-1, n_hat.shape[1] * n_hat.shape[-1])
-                    s_hat = torch.tanh(self.fc_2s(s_hat))  # f2//2
-                    n_hat = torch.tanh(self.fc_2s(n_hat))  # f2//2
+                    x_hat = x_hat.view(-1, x_hat.shape[1] * x_hat.shape[-1]) # f2
+                    x_hat = torch.tanh(self.fc_2s(x_hat))
                     
-                    return s_hat, n_hat , arg_idx_s, arg_idx_n  
+                    return x_hat, None , arg_idx_s, arg_idx_n  
 
                 if self.sr:
                     code_s = self.addup_sr_in(code_s)  # d_s -> f2
@@ -183,9 +179,9 @@ class Prop_mixture(nn.Module):
                     code = torch.cat((code_s, code_n), 1)  # f2//2 -> f2
                     code = self.addup_sr_out(code)         # f2
                     
-                    x_hat = self.dec_2s(code) # f2//2
+                    x_hat = self.dec_2s(code) # f2
 
-                    x_hat = x_hat.view(-1, x_hat.shape[1] * x_hat.shape[-1]) #f2//2
+                    x_hat = x_hat.view(-1, x_hat.shape[1] * x_hat.shape[-1]) # f2
                     x_hat = torch.tanh(self.fc_2s(x_hat))
                     
                     return x_hat, None, arg_idx_s, arg_idx_n     

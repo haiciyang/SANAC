@@ -31,6 +31,7 @@ from Blocks import BasicBlock, Bottleneck, ChannelChange
 # from Prop_padding import Prop_padding as Model
 # from Prop_padding_comp import Prop_padding_comp as Model
 from Prop import Prop as Model
+# from Prop_mixture import Prop_mixture as Model
 from utils import *
 import glob
 
@@ -39,14 +40,29 @@ debugging = False
 print('debugging:',debugging)
 
 
-db = '5db'
+db = '0db'
+window_in_data = True
+
+if window_in_data:
+    rebuild_f = rebuild
+else:
+    rebuild_f = rebuild_extraWindow
 
 if db == '5db':
     train_path = '../data/half_win_train_ctn_std4_m.pth'
     test_path = '../data/half_win_test_ctn_std4_m.pth'
-elif db == '0db':
-    train_path = '../data/half_win_train_ctn_std_m.pth'
-    test_path = '../data/half_win_test_ctn_std_m.pth'
+# elif db == '0db':
+#     train_path = '../data/half_win_train_ctn_std_m.pth'
+#     test_path = '../data/half_win_test_ctn_std_m.pth'
+elif db == '0db' and window_in_data:
+    train_path = '../data/1116_0db_global_train.pth'
+    test_path = '../data/1116_0db_global_test.pth'
+# elif db == '0db' and not window_in_data:
+#     train_path = '../data/1117_0db_global_noWindow_train.pth'
+#     test_path = '../data/1117_0db_global_noWindow_test.pth'
+elif db == '-5db':
+    train_path = '../data/half_win_train_ctn_std-5_m.pth'
+    test_path = '../data/half_win_test_ctn_std-5_m.pth'
 
 # Dataset Loading
 train_loader = torch.load(train_path)
@@ -57,45 +73,62 @@ print('Data loaded Successfully!')
 
 filters = 30
 d = 6
-f2 = 60
+f2 = 30
 m = 160
 sr = True
 lr = 0.0001
-weight1 = 1/20
+weight1 = 1/5
 weight2 = 1/60
-target = 6
+target = 5
 ratio = 1/3
 label = time.strftime("%m%d_%H%M%S")
-br = target * 8 if sr else target * 16
+br = 32
+target = br/8 if sr else br/16
+# br = target * 8 if sr else target * 16
 mel_weight = 1/12
 
-model_name = None
+# saved_model = '1008_231358_40_d6_0db'
+saved_model = None
+finetune = False
 
-if isinstance(model_name, type(None)):
-    model_name = '{}_{}_d{}_{}'.format(label, str(br), str(d), db)
+if isinstance(saved_model, type(None)) or finetune:
+    model_name = '{}_{}_d{}_{}_{}'.format(label, str(br), str(d), db, str(Model.__name__)[:4])
+else:
+    model_name = saved_model
     
 result_path = '../Results/{}.txt'.format(model_name)
 model_path = '../models/{}.model'.format(model_name)
 print('Model Name:', model_name)
-hyperpara = ' c_1stDiv {}\n c_2ndDiv {}\n centroid_d {}\n sr {}\n bitrate {}\n lr {}\n weight1 {}\n weight2 {}\n ratio {}\n mel_weight {}\n'.format(filters, f2, d, sr, br, lr, weight1, weight2, ratio, mel_weight)
+hyperpara = ' c_1stDiv {}\n c_2ndDiv {}\n centroid_d {}\n sr {}\n bitrate {}\n lr {}\n weight1 {}\n weight2 {}\n ratio {}\n mel_weight {}\n, window_in_data {}\n'.format(filters, f2, d, sr, br, lr, weight1, weight2, ratio, mel_weight, window_in_data)
 print(hyperpara)
 
-# ======= Special Note =========
+# ============ Note ============
 if not debugging:
     with open(result_path, 'a') as f:
-        f.write('Mel Loss; on mix and clean\n')
+        f.write('Using old data - local maximum\n')
 # ==============================
 
 if not debugging:
     with open(result_path, 'a') as f:
         f.write(hyperpara + '\n' + 'Model Name:'+ model_name+'\n')
 # 
-if model_path in glob.glob('../models/*.model'):
-    model = torch.load(model_path)
-    print('loaded trained model: {}\n\
+if not isinstance(saved_model, type(None)):
+    model = torch.load('../models/{}.model'.format(saved_model))
+    writeout = 'loaded trained model: {}\n\
     Max score saved in model: {}\n\
     Model_stage: {}\n\
-    Model_entropy_control: {}\n'.format(model_name, model.max_score, model.stage, model.etp))
+    Model_entropy_control: {}\n'.format(saved_model, model.max_score, model.stage, model.etp)
+    print(writeout)
+    
+    if not debugging:
+        with open(result_path, 'a') as f:
+            f.write(writeout+'\n')
+        
+    if finetune:
+        print('Finetuning model...')
+        if not debugging:
+            with open(result_path, 'a') as f:
+                f.write('Finetuning model..')
 else:
     model = Model(block = Bottleneck, scale = 10, filters = filters, d_s = d, d_n = d, f2 = f2, num_m = m, sr = sr, ratio = ratio).cuda()
     print('loaded new model:'+ Model.__name__+'\n')
@@ -105,7 +138,7 @@ if not debugging:
         f.write('Model Loaded:'+ Model.__name__ +'\n')
 
 criterion = nn.MSELoss()
-optimizer = torch.optim.Adam(list(model.parameters()) + [model.means_s] + [model.means_n] + [model.ratio], lr=lr)
+optimizer = torch.optim.Adam(list(model.parameters()) + [model.means_s] + [model.means_n] + [model.ratio], lr=lr, betas = (0.99, 0.999))
 t = 0
 print('Model Loaded. Start training...')
 
@@ -119,6 +152,7 @@ max_rs = None
 flct = 0.1
 # etp = 0
 itermax = 0
+itm = 20
 
 
 # Training Process
@@ -126,8 +160,15 @@ itermax = 0
 while 1: 
     start = time.time()
     model.train()
-    if t == 3 and model.stage == 0:
+    if t == 15 and model.stage == 0:
+        if not debugging:
+            torch.save(model, '../models/{}_stage0.model'.format(model_name))
+            print('saved model at ../models/{}_stage0.model\n'.format(model_name))
+            with open(result_path, 'a') as the_file:
+                the_file.write('saved at ../models/{}_stage0.model\n'.format(model_name))
         model.stage = 1
+        model.max_score = 0
+        itermax = 0
     if model.scale < 500:
         model.scale *= t+1
     train_sdr_s = []
@@ -153,11 +194,15 @@ while 1:
 #         rs = rebuild(s_h).unsqueeze(dim = 0)
        
 #         train_sdr_rs.append(SISDR(wave_s, rs))
-#         rn = rebuild(n_h).unsqueeze(dim = 0)
-#         train_sdr_rx.append(SISDR(wave_x, rn+rs))
-        train_mel_cl = melMSELoss_short(s_h.cpu().data, source.cpu().data)
-        train_mel_mx = melMSELoss_short((s_h+n_h).cpu().data, mixture.cpu().data)
         
+        
+        if not isinstance(n_h, type(None)):
+            rn = rebuild(n_h).unsqueeze(dim = 0)
+            train_mel_cl = melMSELoss_short(s_h.cpu().data, source.cpu().data)
+            train_mel_mx = melMSELoss_short((s_h+n_h).cpu().data, mixture.cpu().data)
+        else:
+            train_mel_mx = melMSELoss_short(s_h.cpu().data, mixture.cpu().data)
+            
         entp_cl = None
         entp_ns = None
         if not isinstance(prob_s, type(None)) and not isinstance(prob_n, type(None)):
@@ -169,9 +214,19 @@ while 1:
 #         if model.stage == 1:
 #         loss = mulaw_loss(s_h, source, criterion) + mulaw_loss(n_h+s_h, mixture, criterion)
 #         if model.stage != 2:
-        loss = criterion(s_h, source) + criterion(n_h+s_h, mixture)\
-        + mel_weight * train_mel_cl.cuda() \
-        + mel_weight * train_mel_mx.cuda()
+#         loss = \
+#         loss = + criterion(s_h, source) + criterion(n_h+s_h, mixture)\
+#         loss = criterion(rs, wave_s) + criterion(rs+rn, wave_x)\
+#         print(l1Loss(wave_s, rs).cuda(), mel_weight * train_mel_cl.cuda())
+        
+        
+        if not isinstance(n_h, type(None)):
+            loss = criterion(s_h, source) + criterion(n_h+s_h, mixture) \
+            + mel_weight * train_mel_cl.cuda() \
+            + mel_weight * train_mel_mx.cuda() 
+        else:
+            loss = criterion(s_h, mixture) + mel_weight * melMSELoss_short(s_h.cpu().data, mixture.cpu().data).cuda()
+        
         
 #         if model.stage == 2:
 #             loss = criterion(s_h, mixture)
@@ -207,7 +262,8 @@ while 1:
         loss.backward()
         optimizer.step()
         
-#         break
+        if debugging:
+            break
         
 
     end = time.time()
@@ -218,7 +274,7 @@ while 1:
             the_file.write(Epoch_info+'\n')
 
 #     s_s_score, s_rs_score, s_rx_score, s_diff_score, _, _, _ = test_newData(True)
-    h_s_score, h_rs_score, h_rx_score, h_diff_score, max_single_rs,  arg_s, arg_n = test_newData(False, test_loader, model)
+    h_s_score, h_rs_score, h_rx_score, h_diff_score, max_single_rs,  arg_s, arg_n = test_newData(False, test_loader, model, window_in_data, debugging)
     
     entropy = [0, 0]
 
@@ -240,18 +296,40 @@ while 1:
             the_file.write(numbers+'\n')
     
     t += 1
-    if model.stage >= 1:
-        itermax += 1
+    
+#     if model.stage >= 1:
+    itermax += 1
 #         etp = 1
-        if h_rx_score > model.max_score:
-            model.max_score = h_rx_score
-            max_sdr = (h_rs_score, h_rx_score, entropy[0], entropy[1])
-            max_rs = max_single_rs
-            if not debugging:
-                torch.save(model, model_path)  
-            itermax = 0
+    if h_rx_score > model.max_score:
+        model.max_score = h_rx_score
+        max_sdr = (h_rs_score, h_rx_score, entropy[0], entropy[1])
+        max_rs = max_single_rs
+        if not debugging:
+            torch.save(model, model_path)  
+            print('saved at normal model_path')
+        itermax = 0
+    if finetune:
+        itm = 40
+        torch.save(model, '../models/{}_epoch{}.model'.format(model_name, t))
+        
+    if model.stage == 0 and itermax >= 5:
+        if not debugging:
+#             model = torch.load(model_path)
+            torch.save(model, '../models/{}_stage0.model'.format(model_name))  
+            print('saved model at ../models/{}_stage0.model'.format(model_name))
+            with open(result_path, 'a') as the_file:
+                the_file.write('saved at ../models/{}_stage0.model\n'.format(model_name))
+        model.stage = 1
+        model.max_score = 0
+        itermax = 0
     
     if model.stage == 1 and model.etp == 0 and itermax >= 3:
+        if not debugging:
+#             model = torch.load(model_path)        
+            torch.save(model, '../models/{}_stage1ept0.model'.format(model_name)) 
+            print('saved model at ../models/{}_stage1ept0.model'.format(model_name))
+            with open(result_path, 'a') as the_file:
+                the_file.write('saved at ../models/{}_stage1ept0.model\n'.format(model_name))
         model.etp = 1
         itermax = 0
         model.max_score = 0
@@ -259,11 +337,17 @@ while 1:
 
 #     if model.stage == 1 and itermax >= 2:
     if model.stage == 1 and itermax >= 5 and model.etp == 1 :
-        model.stage = 2  
+        if not debugging:
+#             model = torch.load(model_path)
+            torch.save(model, '../models/{}_stage1ept1.model'.format(model_name)) 
+            print('saved model at ../models/{}_stage1ept1.model'.format(model_name))
+            with open(result_path, 'a') as the_file:
+                the_file.write('saved at ../models/{}_stage1ept1.model\n'.format(model_name))
+        model.stage = 2
 #         itermax = 0
 #         max_sdr = (0,0,0,0)
         print('Enter stage 2')
 
-    if model.etp == 1 and itermax > 20:
+    if model.etp == 1 and itermax > itm:
         print('over')
         break

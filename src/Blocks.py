@@ -80,6 +80,41 @@ class Bottleneck(nn.Module):
 
         return out
 
+class Bottleneck_new(nn.Module):
+    
+    def __init__(self, in_plane, dilation=1):
+        super(Bottleneck_new, self).__init__()
+        
+        kernel_size = 9
+        width = in_plane//4
+        padding_size = (dilation * (kernel_size-1))//2
+        
+        # Both self.conv2 and self.downsample layers downsample the input when stride != 1
+        self.conv_in = nn.Conv1d(in_plane, width, kernel_size, padding = padding_size, dilation=dilation)
+        self.conv_bt = nn.Conv1d(width, width, kernel_size, padding = padding_size, dilation=dilation)
+        self.conv_out = nn.Conv1d(width, in_plane, kernel_size, padding = padding_size, dilation=dilation)
+        
+#         self.bn_bt = nn.BatchNorm1d(width)
+#         self.bn_out = nn.BatchNorm1d(outplanes)
+        
+        self.relu = nn.ReLU()
+
+    def forward(self, x):
+
+        identity = x
+
+        out = self.conv_in(x)
+        out = self.relu(out)
+
+        out = self.conv_bt(out)
+        out = self.relu(out)
+        
+        out = self.conv_out(out)
+        out = self.relu(out)
+        out += identity
+
+        return out
+
 class ChannelChange(nn.Module):
     expansion = 4
 

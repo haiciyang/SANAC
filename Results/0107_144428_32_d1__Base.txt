@@ -1,0 +1,36 @@
+
+ c_1stDiv 100
+ centroid_d 1
+ sr True
+ bitrate 32
+ lr 0.0001
+ weight_mse 30
+ weight_mel 5
+ weight_etp1 
+ window_in_data False 
+ scale 100 
+ num_m 32
+Model Name:0107_144428_32_d1__Base
+Model Loaded:Baseline_0105
+epoch_0| Time:538 | Control:0 | Stage: 0 | Itermax: 0 | etp:0 
+|Test-hard x: 14.74 rx: 17.31 |Entropy :  0.00
+epoch_1| Time:461 | Control:0 | Stage: 0 | Itermax: 0 | etp:0 
+|Test-hard x: 14.40 rx: 17.33 |Entropy :  0.00
+saved at ../models/0107_144428_32_d1__Base_stage0.model
+epoch_2| Time:405 | Control:0 | Stage: 1 | Itermax: 0 | etp:0 
+|Test-hard x: -28.40 rx: -20.18 |Entropy :  0.05
+epoch_3| Time:415 | Control:0 | Stage: 1 | Itermax: 1 | etp:0 
+|Test-hard x: -30.25 rx: -30.82 |Entropy :  0.02
+epoch_4| Time:425 | Control:0 | Stage: 1 | Itermax: 2 | etp:0 
+|Test-hard x: -30.94 rx: -31.09 |Entropy :  0.02
+saved at ../models/0107_144428_32_d1__Base_stage1ept0.model
+epoch_5| Time:631 | Control:1 | Stage: 1 | Itermax: 0 | etp:1 
+|Test-hard x: -27.26 rx: -15.99 |Entropy :  0.09
+epoch_6| Time:633 | Control:1 | Stage: 1 | Itermax: 1 | etp:1 
+|Test-hard x: -28.06 rx: -17.77 |Entropy :  0.10
+epoch_7| Time:621 | Control:1 | Stage: 1 | Itermax: 2 | etp:1 
+|Test-hard x: -28.15 rx: -18.02 |Entropy :  0.07
+epoch_8| Time:620 | Control:1 | Stage: 1 | Itermax: 3 | etp:1 
+|Test-hard x: -28.13 rx: -18.38 |Entropy :  0.09
+epoch_9| Time:623 | Control:1 | Stage: 1 | Itermax: 4 | etp:1 
+|Test-hard x: -27.00 rx: -16.29 |Entropy :  0.07

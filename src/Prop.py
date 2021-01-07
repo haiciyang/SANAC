@@ -13,6 +13,7 @@ class Prop(nn.Module):
         super(Prop, self).__init__()
         
         self.filters = filters
+        self.f2 = f2
         self.d_s = d_s
         self.d_n = d_n
         self.num_m = num_m
@@ -61,70 +62,41 @@ class Prop(nn.Module):
             block_d(self.d_s, self.d_s)
         )
 
-                # self.mid_n = nn.Sequential(
-    #                 block(self.filters//2, self.filters//2),
-    #                 nn.Conv1d(self.filters//2, self.d_n, 11, padding=5),
-    #                 nn.ReLU(),
-    # #                 block(self.d_n, self.d_n)
-    #             )
-
-        if not sr:
-            self.dec_1s = nn.Sequential(
-        #                 nn.Conv1d(self.d_s, self.filters//2,  5, padding=2),
-        #                 nn.ReLU(),
-                block_d(self.d_s, self.d_s),
-                block_d(self.d_s, self.d_s)
-            )
-
-                    # self.dec_1n = nn.Sequential(
-                    #     block(self.d_n, self.d_n),
-                    #     block(self.d_n, self.d_n)
-                    # )
-
-        self.addup_layers = nn.Sequential(
-            nn.Conv1d(self.d_s+self.d_n, f2, 5, padding=2),
-            nn.ReLU(),
-            block(f2, f2),
-            block(f2, f2)         
-        )
 
         dec_layers = []
         for i in range(2):
-            dec_layers.append(block(f2//2, f2//2))
+            dec_layers.append(block(self.f2, self.f2))
         self.dec_2s = nn.Sequential(*dec_layers)
 
-#         dec_layers = []
-#         for i in range(layers-1):
-#             dec_layers.append(block(f2//2, f2//2))
-#         self.dec_2n = nn.Sequential(*dec_layers)
+
+        self.dec_in = nn.Sequential(
+            nn.Conv1d(self.d_s, self.filters, 3, padding=1),
+            block(self.filters, self.filters)
+        )
+        
+        dec_layers = []
+        for i in range(layers-1):
+            dec_layers.append(block(self.filters, self.filters))
+        self.dec_out = nn.Sequential(*dec_layers)
+        
+        self.addup_in = nn.Sequential(
+            nn.Conv1d(self.d_s, self.f2, 3, padding=1),
+            block(self.f2, self.f2)
+        )
+        
+        addlayers = []
+        for i in range(2):
+            addlayers.append(block(2*self.f2, 2*self.f2))
+        self.addup_out = nn.Sequential(*addlayers)                       
 
         if sr == True:
 
-            self.dec_sr_in = nn.Sequential(
-                nn.Conv1d(self.d_s, self.filters, 3, padding=1),
-                block(self.filters, self.filters)
-            )
+            self.channel_change_1 = nn.Conv1d(self.filters//2, self.filters, 3, padding=1)
+            self.channel_change_2 = nn.Conv1d(self.f2//2, self.f2, 3, padding=1)
+            
+        self.fc_1 = nn.Linear(512 * self.filters, 512)
+        self.fc_2 = nn.Linear(512 * self.f2, 512)
 
-            dec_layers = []
-            for i in range(layers-1):
-                dec_layers.append(block(self.filters//2, self.filters//2))
-            self.dec_sr_out = nn.Sequential(*dec_layers)
-
-            self.fc_sr = nn.Linear(512 * self.filters//2, 512)
-
-            self.addup_sr_in = nn.Sequential(
-                nn.Conv1d(self.d_s, f2, 3, padding=1),
-                block(f2, f2)
-            )
-            addlayers = []
-            for i in range(2):
-                addlayers.append(block(f2, f2))
-            self.addup_sr_out = nn.Sequential(*addlayers)                       
-
-        self.fc_1s = nn.Linear(512 * self.d_s, 512)
-#         self.fc_1n = nn.Linear(512 * self.d_n, 512)
-        self.fc_2s = nn.Linear(512 * f2//2, 512)
-#         self.fc_2n = nn.Linear(512 * f2//2, 512)
     
     def forward(self, x, soft=True): # Coding first
 
@@ -157,69 +129,50 @@ class Prop(nn.Module):
             
             if self.stage == 2:
 
-                if not self.sr:
                 
-                    code = torch.cat((code_s, code_n), 1)
-                    code = self.addup_layers(code)  # d_s + d_n -> f2
-                    code_s = code[:, :code.shape[1]//2, :]
-                    code_n = code[:, code.shape[1]//2:, :]
+                code_s = self.addup_in(code_s)  # d_s -> f2
+                code_n = self.addup_in(code_n)
                     
-                    s_hat = self.dec_2s(code_s) # f2//2
-                    n_hat = self.dec_2s(code_n) # f2//2
-
-                    s_hat = s_hat.view(-1, s_hat.shape[1] * s_hat.shape[-1])
-                    n_hat = n_hat.view(-1, n_hat.shape[1] * n_hat.shape[-1])
-                    s_hat = torch.tanh(self.fc_2s(s_hat))  # f2//2
-                    n_hat = torch.tanh(self.fc_2s(n_hat))  # f2//2
-                    
-                    return s_hat, n_hat , arg_idx_s, arg_idx_n  
-
                 if self.sr:
-                    code_s = self.addup_sr_in(code_s)  # d_s -> f2
-                    code_n = self.addup_sr_in(code_n)
-                    
                     code_s = self.sub_pixel(code_s).cuda() # f2 -> f2//2
                     code_n = self.sub_pixel(code_n).cuda()
                     
-                    code = torch.cat((code_s, code_n), 1)  # f2//2 -> f2
-                    code = self.addup_sr_out(code)         # f2
-                    code_s = code[:, :code.shape[1]//2, :] # f2 -> f2//2
-                    code_n = code[:, code.shape[1]//2:, :]
+                    code_s = self.channel_change_2(code_s) # f2//2 -> f2
+                    code_n = self.channel_change_2(code_n)
                     
-                    s_hat = self.dec_2s(code_s) # f2//2
-                    n_hat = self.dec_2s(code_n) # 
-
-                    s_hat = s_hat.view(-1, s_hat.shape[1] * s_hat.shape[-1])
-                    n_hat = n_hat.view(-1, n_hat.shape[1] * n_hat.shape[-1])
-                    s_hat = torch.tanh(self.fc_2s(s_hat))  # f2//2
-                    n_hat = torch.tanh(self.fc_2s(n_hat))
+                code = torch.cat((code_s, code_n), 1)  # f2 -> 2*f2
+                code = self.addup_out(code)         # 2*f2
+                code_s = code[:, :code.shape[1]//2, :] # 2*f2 -> f2
+                code_n = code[:, code.shape[1]//2:, :]
                     
-                    return s_hat, n_hat , arg_idx_s, arg_idx_n     
+                s_hat = self.dec_2s(code_s) # f2
+                n_hat = self.dec_2s(code_n) # 
 
-        if not self.sr:
-            s_hat = self.dec_1s(code_s) # d_s 
-            n_hat = self.dec_1s(code_n) # d_s
+                s_hat = s_hat.view(-1, s_hat.shape[1] * s_hat.shape[-1])
+                n_hat = n_hat.view(-1, n_hat.shape[1] * n_hat.shape[-1])
+                s_hat = torch.tanh(self.fc_2(s_hat))  # f2
+                n_hat = torch.tanh(self.fc_2(n_hat))
+                    
+                return s_hat, n_hat , arg_idx_s, arg_idx_n     
 
-            s_hat = s_hat.view(-1, s_hat.shape[1] * s_hat.shape[-1])
-            n_hat = n_hat.view(-1, n_hat.shape[1] * n_hat.shape[-1])
-            s_hat = torch.tanh(self.fc_1s(s_hat)) # d_s
-            n_hat = torch.tanh(self.fc_1s(n_hat)) # d_s
 
-        if self.sr:
-
-            s_hat = self.dec_sr_in(code_s) # filters
-            n_hat = self.dec_sr_in(code_n) # 
+        s_hat = self.dec_in(code_s) # d_s -> filters
+        n_hat = self.dec_in(code_n) # 
             
+        if self.sr:
             s_hat = self.sub_pixel(s_hat).cuda() # filters//2
             n_hat = self.sub_pixel(n_hat).cuda() 
+
+            s_hat = self.channel_change_1(s_hat) # filters//2 -> filters
+            n_hat = self.channel_change_1(n_hat)
                                     
-            s_hat = self.dec_sr_out(s_hat) # filters//2
-            n_hat = self.dec_sr_out(s_hat) 
+        s_hat = self.dec_out(s_hat) # filters
+        n_hat = self.dec_out(s_hat) # filters
                     
-            s_hat = s_hat.view(-1, s_hat.shape[1] * s_hat.shape[-1])
-            n_hat = n_hat.view(-1, n_hat.shape[1] * n_hat.shape[-1])
-            s_hat = torch.tanh(self.fc_sr(s_hat))  # filters//2
-            n_hat = torch.tanh(self.fc_sr(n_hat))
+        s_hat = s_hat.view(-1, s_hat.shape[1] * s_hat.shape[-1])
+        n_hat = n_hat.view(-1, n_hat.shape[1] * n_hat.shape[-1])
+        s_hat = torch.tanh(self.fc_1(s_hat))  # filters -> 512
+        n_hat = torch.tanh(self.fc_1(n_hat))
 
                 
         return s_hat, n_hat , arg_idx_s, arg_idx_n

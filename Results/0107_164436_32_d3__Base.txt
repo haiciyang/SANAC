@@ -1,0 +1,29 @@
+
+ c_1stDiv 100
+ centroid_d 3
+ sr True
+ bitrate 32
+ lr 0.0001
+ weight_mse 30
+ weight_mel 5
+ weight_etp 1 
+ window_in_data False 
+ scale 50 
+ num_m 160
+Model Name:0107_164436_32_d3__Base
+Model Loaded:Baseline_0105
+epoch_0| Time:401 | Control:0 | Stage: 0 | Itermax: 0 | etp:0 
+|Test-hard x: 24.14 rx: 32.55 |Entropy :  0.00
+epoch_1| Time:401 | Control:0 | Stage: 0 | Itermax: 0 | etp:0 
+|Test-hard x: 26.76 rx: 33.73 |Entropy :  0.00
+saved at ../models/0107_164436_32_d3__Base_stage0.model
+epoch_2| Time:428 | Control:0 | Stage: 1 | Itermax: 0 | etp:0 
+|Test-hard x: -1.88 rx: 2.81 |Entropy :  2.35
+epoch_3| Time:428 | Control:0 | Stage: 1 | Itermax: 0 | etp:0 
+|Test-hard x: 1.94 rx: 13.18 |Entropy :  3.34
+epoch_4| Time:429 | Control:0 | Stage: 1 | Itermax: 0 | etp:0 
+|Test-hard x: 2.70 rx: 12.03 |Entropy :  3.00
+epoch_5| Time:427 | Control:0 | Stage: 1 | Itermax: 1 | etp:0 
+|Test-hard x: -0.81 rx: 10.34 |Entropy :  1.85
+epoch_6| Time:431 | Control:0 | Stage: 1 | Itermax: 2 | etp:0 
+|Test-hard x: -1.52 rx: 8.82 |Entropy :  1.64
