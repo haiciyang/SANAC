@@ -88,13 +88,17 @@ class Baseline_0105(nn.Module):
     def code_init(self, codes, d, num_m):
         
         # codes.shape - (bt, d, L)
-#         if self.d == 0:
-#             means = 
-#         else:
-        idx = torch.randint(0, codes.shape[0] * codes.shape[-1], (num_m,))
-        samples = codes.permute(0, 2, 1).reshape(-1, d) # (bt*L, d)
+        if self.d == 1:
+            means = torch.arange(-1, 1, 1/self.num).requires_grad_()[None, :].cuda()
+        else:
+            idx = torch.randint(0, codes.shape[0] * codes.shape[-1], (num_m,))
+            samples = codes.permute(0, 2, 1).reshape(-1, d) # (bt*L, d)
+            means = Variable(samples[idx].T, requires_grad = True) # (d, num_m)
 
-        means = Variable(samples[idx].T, requires_grad = True) # (d, num_m)
+#         idx = torch.randint(0, codes.shape[0] * codes.shape[-1], (num_m,))
+#         samples = codes.permute(0, 2, 1).reshape(-1, d) # (bt*L, d)
+
+#         means = Variable(samples[idx].T, requires_grad = True) # (d, num_m)
         
         return means
         
