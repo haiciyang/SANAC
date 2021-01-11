@@ -5,7 +5,7 @@ import librosa
 import numpy as np
 from IPython.display import clear_output
 
-class Data_CleanTIMIT(data.Dataset):
+class Data_CleanTIMIT_random(data.Dataset):
     def __init__(self, task, mix_num = 1, overlap = 64, level=0, window = False):
         
         self.task = task
@@ -49,7 +49,7 @@ class Data_CleanTIMIT(data.Dataset):
             print(i, flush=True)
             self.load_trim(uttr, level=level)
         
-        self.data_c /= self.max_c
+#         self.data_c /= self.max_c
         self.data_c_l /= self.max_c
         
         print('Data size:', len(self.data_c))

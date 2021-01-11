@@ -17,9 +17,10 @@ class Baseline_0105(nn.Module):
         self.sr = sr
         self.max_score = 0 # the besdt score saved by the model
         self.etp = 0 # butten for entropy control 0-off; 1-on
-        
-        self.means = torch.rand((self.d, self.num_m), device='cuda', requires_grad = True)
-        
+        self.means = torch.arange(-1, 1, 2/self.num_m)[None, :].cuda().requires_grad_()
+        self.atv_f = nn.LeakyReLU()
+
+#         self.means = None
         self.initiated = False
         self.stage = 0  
 
@@ -28,13 +29,13 @@ class Baseline_0105(nn.Module):
         # ======== Encoder =========
         enc_layers = []
         enc_layers.append(nn.Conv1d(1, filters, 9, padding=4))
-        enc_layers.append(nn.ReLU())
+        enc_layers.append(self.atv_f)
         # ----- 1st bottleneck -----
         enc_layers.append(block(in_plane=filters, dilation=1))
         enc_layers.append(block(filters, dilation=2))
         if sr == True:
             enc_layers.append(nn.Conv1d(filters, filters, 9, padding=4, stride=2))
-            enc_layers.append(nn.ReLU())
+            enc_layers.append(self.atv_f)
         # ----- 2nd bottleneck -----
         enc_layers.append(block(filters, dilation=1))
         enc_layers.append(block(filters, dilation=2))
@@ -47,7 +48,7 @@ class Baseline_0105(nn.Module):
         # ======== Decoder =========
         self.dec_in = nn.Sequential(
                 nn.Conv1d(self.d, filters, 9, padding=4),
-                nn.ReLU(),
+                self.atv_f,
                 block(filters, dilation=1),
                 block(filters, dilation=2)
         )
@@ -56,8 +57,8 @@ class Baseline_0105(nn.Module):
         self.dec_out = nn.Sequential(
             block(filters2, dilation=1),
             block(filters2, dilation=2),
-            nn.Conv1d(filters2, 1, 9, padding=4),
-            nn.Tanh()
+            nn.Conv1d(filters2, 1, 9, padding=4)#,
+#             nn.Tanh()
         )
         
     
@@ -71,11 +72,10 @@ class Baseline_0105(nn.Module):
         # Quantization
         arg_idx_s = None
         if self.stage == 1:
-            if self.initiated == False:
-                self.mean = self.code_init(code, self.d, self.num_m)
-                self.initiated = True
-            code, arg_idx_s = self.code_assign(code, self.mean, soft = soft)
-        
+#             if self.initiated == False:
+#                 self.means = self.code_init(code, self.d, self.num_m)
+#                 self.initiated = True
+            code, arg_idx_s = self.code_assign(code, self.means, soft = soft)
         # Decoder
         s_hat = self.dec_in(code)
         if self.sr:
@@ -89,7 +89,7 @@ class Baseline_0105(nn.Module):
         
         # codes.shape - (bt, d, L)
         if self.d == 1:
-            means = torch.arange(-1, 1, 1/self.num).requires_grad_()[None, :].cuda()
+            means = torch.arange(-1, 1, 2/self.num_m)[None, :].cuda().requires_grad_()
         else:
             idx = torch.randint(0, codes.shape[0] * codes.shape[-1], (num_m,))
             samples = codes.permute(0, 2, 1).reshape(-1, d) # (bt*L, d)
@@ -103,12 +103,17 @@ class Baseline_0105(nn.Module):
         return means
         
     
-    def code_assign(self, codes, mean, soft):
+    def code_assign(self, codes, means, soft):
         
         # codes shape - (bs, d, L)
-        # mean shape - (d, num_m)
+        # means shape - (d, num_m)
         
-        mat = torch.sub(codes[:,:,:,None], mean[None,:,None,:]) ** 2 # (bs, d, L, num_m)
+        mat = torch.sub(codes[:,:,:,None], means[None,:,None,:]) ** 2 # (bs, d, L, num_m)
+#         print(mat.shape)
+#         print(codes[60])
+#         print(codes[60,:,0], mat[60,:,0,:])
+#         print(codes[60,:,10], mat[60,:,10,:])
+#         print(codes[60,:,20], mat[60,:,20,:])
         dist_mat = torch.sum(mat, dim = 1) # shape(bs, 512, 32)
         
         # Replace hidden features with means based on probability calculated by softmax
@@ -119,15 +124,16 @@ class Baseline_0105(nn.Module):
             # Soft
             eps = 1e-20
             prob_mat = F.softmax(- dist_mat*self.scale, dim = -1) # shape(bs, 512, num_m)
-            x = torch.matmul(prob_mat, mean.transpose(0,1)) # shape(bs, 512, d)
+            x = torch.matmul(prob_mat, means.transpose(0,1)) # shape(bs, 512, d)
             x = x.permute(0, 2, 1)
+            
             return x, prob_mat
         
         else:
             # Hard
             arg_idx = torch.argmax(- dist_mat, dim = -1) 
             # arg_idx.shape -> (bs, 512) entry is the index from 0-31
-            x = mean[:, arg_idx]  # x.shape -> (10, bs, 512)
+            x = means[:, arg_idx]  # x.shape -> (10, bs, 512)
             x = x.permute(1, 0, 2)
         
             # arg_idx is only used for entropy calculating when doing hard argmax in test

@@ -86,7 +86,8 @@ class Bottleneck_new(nn.Module):
         super(Bottleneck_new, self).__init__()
         
         kernel_size = 9
-        width = in_plane//4
+#         width = in_plane//4
+        width = 25
         padding_size = (dilation * (kernel_size-1))//2
         
         # Both self.conv2 and self.downsample layers downsample the input when stride != 1
@@ -97,20 +98,25 @@ class Bottleneck_new(nn.Module):
 #         self.bn_bt = nn.BatchNorm1d(width)
 #         self.bn_out = nn.BatchNorm1d(outplanes)
         
+        self.atv_f = nn.LeakyReLU()
         self.relu = nn.ReLU()
+        
 
     def forward(self, x):
 
         identity = x
 
         out = self.conv_in(x)
-        out = self.relu(out)
+        out = self.atv_f(out)
+#         out = self.relu(out)
 
         out = self.conv_bt(out)
-        out = self.relu(out)
+        out = self.atv_f(out)
+#         out = self.relu(out)
         
         out = self.conv_out(out)
-        out = self.relu(out)
+        out = self.atv_f(out)
+#         out = self.relu(out)
         out += identity
 
         return out

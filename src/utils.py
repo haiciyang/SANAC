@@ -58,6 +58,33 @@ def melMSELoss_short(s, sr, n_mels = [8, 16, 32, 128]):
     
     assert s.shape[1] == 512
     assert sr.shape[1] == 512
+    
+    def no_window(length):
+        return torch.ones(length)
+
+    loss = 0
+    eps = 1e-20
+    mse = nn.MSELoss().cuda()
+    s = s.cuda()
+    sr = sr.cuda()
+    for n in n_mels:
+        melspec = torchaudio.transforms.MelSpectrogram(n_fft=512, n_mels=n, window_fn=no_window).cuda() 
+        s_mel = melspec(s)[:,:,1] # shape - [bt, n] 
+        sr_mel = melspec(sr)[:,:,1]
+        # s_mel.shape -> [bt, n]
+        
+        s_mel = torch.log(s_mel + eps)
+        sr_mel = torch.log(sr_mel + eps)
+        error = mse(s_mel, sr_mel) #/len(s_mel)
+#         m = mse(s_mel, sr_mel)
+        loss += error
+#         print(error)
+    return loss/len(n_mels)
+
+def melMSELoss_0109(s, sr, n_mels = [8, 16, 32, 128]): 
+    
+    assert s.shape[1] == 512
+    assert sr.shape[1] == 512
     loss = 0
     eps = 1e-20
     mse = nn.MSELoss().cuda()
@@ -76,7 +103,7 @@ def melMSELoss_short(s, sr, n_mels = [8, 16, 32, 128]):
             mse_score += error
 #         m = mse(s_mel, sr_mel)
         loss += mse_score
-    return loss/len(n_mels)  
+    return loss/len(n_mels) 
 
 def l1Loss(s, sr): # input waveform(torch.Tensor)
     
@@ -89,28 +116,6 @@ def l1Loss(s, sr): # input waveform(torch.Tensor)
 
     return loss
 
-
-def weighted_stft_loss(s, sr): # input waveform(torch.Tensor)
-    
-    loss = 0
-    eps = 1e-20
-    mse = nn.MSELoss()
-    spec = torchaudio.transforms.Spectrogram(n_fft=512, hop_length=512)
-    
-
-    s_mel = torch.mean(spec(s), -1)
-    sr_mel = torch.mean(spec(sr), -1)
-    s_mel = torch.log(s_mel + eps)
-    sr_mel = torch.log(sr_mel + eps)
-    a = torch.tensor(1.01)
-    mse_score = 0
-    for i in range(len(s_mel)):
-        error = mse(s_mel[i], sr_mel[i])
-        mse_score += torch.pow(a,2) * error
-#         m = mse(s_mel, sr_mel)
-    loss += mse_score
-    
-    return loss   
 
 def rebuild(output, overlap = 64):
     output = output.cpu()

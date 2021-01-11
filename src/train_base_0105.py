@@ -81,13 +81,14 @@ f2 = 60
 m = 32
 sr = True
 lr = 0.0001
-weight_mse = 30
 br = 32
-scale = 100
+scale = 1000
 label = time.strftime("%m%d_%H%M%S")
 target = br/8 if sr else br/16
 # br = target * 8 if sr else target * 16
-weight_mel = 5
+weight_mse = 30
+weight_mel = 0.5
+weight_qtz = 0.01
 weight_etp = 1
 
 # saved_model = '1008_231358_40_d6_0db'
@@ -102,7 +103,7 @@ else:
 result_path = '../Results/{}.txt'.format(model_name)
 model_path = '../models/{}.model'.format(model_name)
 print('Model Name:', model_name)
-hyperpara = ' c_1stDiv {}\n centroid_d {}\n sr {}\n bitrate {}\n lr {}\n weight_mse {}\n weight_mel {}\n weight_etp {} \n window_in_data {} \n scale {} \n num_m {}'.format(filters, d, sr, br, lr, weight_mse, weight_mel, weight_etp, window_in_data, scale, m)
+hyperpara = ' c_1stDiv {}\n centroid_d {}\n sr {}\n bitrate {}\n lr {}\n weight_mse {}\n weight_mel {}\n weight_etp {} \n weight_qtz {} \n window_in_data {} \n scale {} \n num_m {}'.format(filters, d, sr, br, lr, weight_mse, weight_mel, weight_etp, weight_qtz, window_in_data, scale, m)
 print(hyperpara)
 
 # ============ Note ============
@@ -141,7 +142,7 @@ if not debugging:
         f.write('Model Loaded:'+ Model.__name__ +'\n')
 
 criterion = nn.MSELoss()
-optimizer = torch.optim.Adam(list(model.parameters()) + [model.means], lr=lr, betas = (0.99, 0.999))
+# optimizer = torch.optim.Adam(list(model.parameters()) + [model.means], lr=lr, betas = (0.99, 0.999))
 t = 0
 print('Model Loaded. Start training...')
 
@@ -158,11 +159,13 @@ itermax = 0
 itm = 20
 
 # Training Process
+# optimizer = torch.optim.Adam(list(model.parameters()), lr=lr, betas = (0.99, 0.999))
+optimizer = torch.optim.Adam(list(model.parameters()) + [model.means], lr=lr, betas = (0.99, 0.999))
 
 while 1: 
     start = time.time()
     model.train()
-    if t == 2 and model.stage == 0:
+    if t == 0 and model.stage == 0:
         if not debugging:
             torch.save(model, '../models/{}_stage0.model'.format(model_name))
             print('saved model at ../models/{}_stage0.model'.format(model_name))
@@ -171,45 +174,61 @@ while 1:
         model.stage = 1
         model.max_score = 0
         itermax = 0
-    if model.scale < 500:
-        model.scale *= t+1
+#     if model.scale < 500:
+#         model.scale *= t+1
     train_sdr_s = []
     train_sdr_rs = []
     train_sdr_rx = []
     
     train_etp = []
     control = 0
-    
+#     k = 0
     for wave, inp in train_loader:
-        
+#         k+=1
         inp = inp[0].cuda() #(L, 512)
+        bt = inp.shape[0]
 
         s_h, prob = model(inp, soft = True) # s_h - (L, 1, 512)
         s_h = s_h[:,0,:]
         
-        rs = rebuild_f(s_h).unsqueeze(dim = 0)
+#         rs = rebuild_f(s_h).unsqueeze(dim = 0)
 
-        train_mel_mx = melMSELoss_short(s_h.cpu().data, inp.cpu().data)
-            
+#         train_mel_mx = melMSELoss_short(s_h.cpu().data, inp.cpu().data)
+        train_mel_mx = melMSELoss_short(s_h, inp)
+#         fake()
+        # prob.shape -> (bs, 256, num_m)
+
+        loss_qtz = torch.mean(torch.sum(torch.sqrt(prob+1e-20), -1) - 1) 
+
         entp = None
         if not isinstance(prob, type(None)):
             entp = entropy_prob(prob)
             train_etp.append(entp.cpu().data.numpy())
 
         loss = weight_mse * criterion(s_h, inp)\
+        + weight_qtz * loss_qtz\
         + weight_mel * train_mel_mx
-        
+
+#         print('mse', criterion(s_h, inp))
+#         print('qtz', loss_qtz)
+#         print('melcpu', train_mel_mx)
+#         print('melgpu', train_mel_mx1)
         if model.etp == 1:
             control = 1
             loss += weight_etp * ((target - entp)**2).cuda()
-            
+
+#         print(model.means)
         optimizer.zero_grad()
         loss.backward()
+#         print(model.means.grad)
         optimizer.step()
         
-        if debugging:
-            break
         
+#         if k==30:
+#             break
+#         if debugging:
+#             break
+#     print(model.means)    
     end = time.time()
     Epoch_info = 'epoch_{}| Time:{:.0f} | Control:{:.0f} | Stage: {} | Itermax: {} | etp:{} '.format(t, end-start, control, model.stage, itermax, model.etp)
     print(Epoch_info)
@@ -252,16 +271,16 @@ while 1:
         itm = 40
         torch.save(model, '../models/{}_epoch{}.model'.format(model_name, t))
         
-    if model.stage == 0 and itermax >= 5:
-        if not debugging:
-#             model = torch.load(model_path)
-            torch.save(model, '../models/{}_stage0.model'.format(model_name))  
-            print('saved model at ../models/{}_stage0.model'.format(model_name))
-            with open(result_path, 'a') as the_file:
-                the_file.write('saved at ../models/{}_stage0.model\n'.format(model_name))
-        model.stage = 1
-        model.max_score = 0
-        itermax = 0
+#     if model.stage == 0 and itermax >= 5:
+#         if not debugging:
+# #             model = torch.load(model_path)
+#             torch.save(model, '../models/{}_stage0.model'.format(model_name))  
+#             print('saved model at ../models/{}_stage0.model'.format(model_name))
+#             with open(result_path, 'a') as the_file:
+#                 the_file.write('saved at ../models/{}_stage0.model\n'.format(model_name))
+#         model.stage = 1
+#         model.max_score = 0
+#         itermax = 0
     
 #     if model.stage == 1 and model.etp == 0 and itermax >= 3:
 #         if not debugging:
