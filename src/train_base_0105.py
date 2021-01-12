@@ -88,7 +88,7 @@ target = br/8 if sr else br/16
 # br = target * 8 if sr else target * 16
 weight_mse = 30
 weight_mel = 0.5
-weight_qtz = 0.01
+weight_qtz = 0.1
 weight_etp = 1
 
 # saved_model = '1008_231358_40_d6_0db'
@@ -182,6 +182,9 @@ while 1:
     
     train_etp = []
     control = 0
+    qtz_loss = []
+    mel_loss = []
+    mse_loss = []
 #     k = 0
     for wave, inp in train_loader:
 #         k+=1
@@ -195,10 +198,14 @@ while 1:
 
 #         train_mel_mx = melMSELoss_short(s_h.cpu().data, inp.cpu().data)
         train_mel_mx = melMSELoss_short(s_h, inp)
-#         fake()
+        mel_loss.append(train_mel_mx.cpu().data.numpy())
+        
         # prob.shape -> (bs, 256, num_m)
-
         loss_qtz = torch.mean(torch.sum(torch.sqrt(prob+1e-20), -1) - 1) 
+        qtz_loss.append(loss_qtz.cpu().data.numpy())
+        
+        mse_error = criterion(s_h, inp)
+        mse_loss.append(mse_error.cpu().data.numpy())
 
         entp = None
         if not isinstance(prob, type(None)):
@@ -213,6 +220,7 @@ while 1:
 #         print('qtz', loss_qtz)
 #         print('melcpu', train_mel_mx)
 #         print('melgpu', train_mel_mx1)
+
         if model.etp == 1:
             control = 1
             loss += weight_etp * ((target - entp)**2).cuda()
@@ -223,11 +231,10 @@ while 1:
 #         print(model.means.grad)
         optimizer.step()
         
-        
 #         if k==30:
 #             break
-#         if debugging:
-#             break
+        if debugging:
+            break
 #     print(model.means)    
     end = time.time()
     Epoch_info = 'epoch_{}| Time:{:.0f} | Control:{:.0f} | Stage: {} | Itermax: {} | etp:{} '.format(t, end-start, control, model.stage, itermax, model.etp)
@@ -245,8 +252,8 @@ while 1:
         
     epoch_list.append((h_rx_score, entropy))
     
-    numbers = '|Test-hard x: {:.2f} rx: {:.2f} |Entropy :  {:.2f}'\
-          .format(h_x_score, h_rx_score, entropy)
+    numbers = 'Train_loss: mse_loss: {:.2f} mel_loss: {:.2f} qtz_loss: {:.2f}\n|Test-hard x: {:.2f} rx: {:.2f} |Entropy :  {:.2f}'\
+          .format(np.mean(mse_loss), np.mean(mel_loss), np.mean(qtz_loss), h_x_score, h_rx_score, entropy)
     print(numbers)
     if not debugging:
         with open(result_path, 'a') as the_file:
