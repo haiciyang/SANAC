@@ -41,6 +41,7 @@ class Baseline_0105(nn.Module):
         enc_layers.append(block(filters, dilation=2))
         enc_layers.append(nn.Conv1d(filters, self.d, 9, padding=4))
         enc_layers.append(nn.Tanh())
+#         enc_layers.append(self.atv_f)
 
         self.enc_base = nn.Sequential(*enc_layers)
         

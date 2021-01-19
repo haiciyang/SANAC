@@ -87,9 +87,9 @@ label = time.strftime("%m%d_%H%M%S")
 target = br/8 if sr else br/16
 # br = target * 8 if sr else target * 16
 weight_mse = 30
-weight_mel = 0.5
-weight_qtz = 0.1
-weight_etp = 1
+weight_mel = 5
+weight_qtz = 1
+weight_etp = 0
 
 # saved_model = '1008_231358_40_d6_0db'
 saved_model = None
@@ -187,6 +187,7 @@ while 1:
     mse_loss = []
 #     k = 0
     for wave, inp in train_loader:
+#     for wave_s, wave, source, inp in train_loader: 
 #         k+=1
         inp = inp[0].cuda() #(L, 512)
         bt = inp.shape[0]
@@ -196,8 +197,7 @@ while 1:
         
 #         rs = rebuild_f(s_h).unsqueeze(dim = 0)
 
-#         train_mel_mx = melMSELoss_short(s_h.cpu().data, inp.cpu().data)
-        train_mel_mx = melMSELoss_short(s_h, inp)
+        train_mel_mx = melMSELoss(s_h, inp)
         mel_loss.append(train_mel_mx.cpu().data.numpy())
         
         # prob.shape -> (bs, 256, num_m)
