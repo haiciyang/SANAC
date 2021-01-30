@@ -16,7 +16,7 @@ class Data_CleanTIMIT_random(data.Dataset):
         elif task == 'test':
             folderPath = '/media/sdc1/Data/timit-wav/test'
             stop = 500
-        self.max_c = 0
+        self.max_c = 22.60 # Calculated in advance
         
         self.windowOn = window
         
@@ -50,9 +50,11 @@ class Data_CleanTIMIT_random(data.Dataset):
             self.load_trim(uttr, level=level)
         
 #         self.data_c /= self.max_c
+        print(len(self.data_c_l))
+        self.data_c_l = np.array(self.data_c_l)
         self.data_c_l /= self.max_c
         
-        print('Data size:', len(self.data_c))
+        print('Data size:', len(self.data_c_l))
         
     
     def load_trim(self, wavpath, size = 1, level = 0):
@@ -63,7 +65,7 @@ class Data_CleanTIMIT_random(data.Dataset):
             print('errorfile:',wavpath)
             return
         
-        self.max_c = max(self.max_c, abs(max(c)))
+#         self.max_c = max(self.max_c, abs(max(c)))
 
         c_l = []
         
@@ -72,20 +74,17 @@ class Data_CleanTIMIT_random(data.Dataset):
                 break
             c_l.append(c[i:i+512])
         c_l = np.array(c_l)
-        c = c[:len(c_l)*(512-self.overlap)+self.overlap]
+#         c = c[:len(c_l)*(512-self.overlap)+self.overlap]
         
         if self.windowOn:
             c_l = c_l * self.window
         
-        self.data_c.append(c)
-        self.data_c_l.append(c_l)        
+#         self.data_c.append(c)
+        self.data_c_l.extend(c_l)        
         
     def __len__(self):
-        if self.task == 'train':
-            return len(self.data_c_l)
-        if self.task == 'test':
-            return len(self.data_c)
+        return len(self.data_c_l)
 
     def __getitem__(self, idx):
-        return self.data_c[idx], self.data_c_l[idx]
+        return self.data_c, self.data_c_l[idx]
     

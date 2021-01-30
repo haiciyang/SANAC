@@ -20,11 +20,6 @@ import torch.nn.functional as F
 from torch.autograd import Variable
 import time
 time.tzset()
-# from Models import Autoencoder
-# from TestData import SingleMus
-from Data_TIMIT import Data_TIMIT
-import IPython.display as ipd
-from IPython.display import clear_output
 from Blocks import BasicBlock, Bottleneck, ChannelChange, Bottleneck_new
 # from EntropyControl_curr import AE_control
 # from Prop_sr import Prop_Model 
@@ -42,7 +37,27 @@ debugging = False
 print('debugging:',debugging)
 
 
-db = ''
+# Model Define
+
+filters = 100
+d = 1
+f2 = 60
+m = 32
+sr = True
+lr = 0.0001
+br = 16
+scale = 1000
+label = time.strftime("%m%d_%H%M%S")
+target = br/8 if sr else br/16
+# br = target * 8 if sr else target * 16
+weight_mse = 30
+weight_mel = 0.5
+weight_qtz = 0.5
+weight_etp = 0
+random_data = True
+new_mel = False
+db = '0db'
+
 window_in_data = False
 if window_in_data:
     rebuild_f = rebuild
@@ -60,36 +75,22 @@ if db == '5db':
 #     test_path = '../data/1116_0db_global_test.pth'
 elif db == '0db' and not window_in_data:
     train_path = '../data/1117_0db_global_noWindow_train.pth'
-    test_path = '../data/1117_0db_global_noWindow_test.pth'
+    test_path = '../data/0129_noise_noWindow_test.pth'
+    if random_data:
+        train_path = '../data/0129_0db_noWindow_random_train.pth'
 elif db == '-5db':
     train_path = '../data/half_win_train_ctn_std-5_m.pth'
     test_path = '../data/half_win_test_ctn_std-5_m.pth'
+else:
+    train_path = '../data/0105_clean_noWindow_train.pth'
+    test_path = '../data/0105_clean_noWindow_test.pth'
+    if random_data:
+        train_path = '../data/0126_clean_noWindow_random_train.pth'
     
-train_path = '../data/0105_clean_noWindow_train.pth'
-test_path = '../data/0105_clean_noWindow_test.pth'
-
 # Dataset Loading
 train_loader = torch.load(train_path)
 test_loader = torch.load(test_path)
 print('Data loaded Successfully!')
-
-# Model Define
-
-filters = 100
-d = 1
-f2 = 60
-m = 32
-sr = True
-lr = 0.0001
-br = 32
-scale = 1000
-label = time.strftime("%m%d_%H%M%S")
-target = br/8 if sr else br/16
-# br = target * 8 if sr else target * 16
-weight_mse = 30
-weight_mel = 5
-weight_qtz = 1
-weight_etp = 0
 
 # saved_model = '1008_231358_40_d6_0db'
 saved_model = None
@@ -103,7 +104,7 @@ else:
 result_path = '../Results/{}.txt'.format(model_name)
 model_path = '../models/{}.model'.format(model_name)
 print('Model Name:', model_name)
-hyperpara = ' c_1stDiv {}\n centroid_d {}\n sr {}\n bitrate {}\n lr {}\n weight_mse {}\n weight_mel {}\n weight_etp {} \n weight_qtz {} \n window_in_data {} \n scale {} \n num_m {}'.format(filters, d, sr, br, lr, weight_mse, weight_mel, weight_etp, weight_qtz, window_in_data, scale, m)
+hyperpara = ' c_1stDiv {}\n centroid_d {}\n sr {}\n bitrate {}\n lr {}\n weight_mse {}\n weight_mel {}\n weight_qtz {} \n weight_etp {} \n window_in_data {} \n scale {} \n num_m {} \n random_data {} \n new_mel {}'.format(filters, d, sr, br, lr, weight_mse, weight_mel, weight_qtz, weight_etp, window_in_data, scale, m, random_data, new_mel)
 print(hyperpara)
 
 # ============ Note ============
@@ -186,18 +187,27 @@ while 1:
     mel_loss = []
     mse_loss = []
 #     k = 0
-    for wave, inp in train_loader:
-#     for wave_s, wave, source, inp in train_loader: 
-#         k+=1
-        inp = inp[0].cuda() #(L, 512)
+
+    for data in train_loader:
+        #  c, c_l
+        #  c, x, c_l, x_l
+        inp = data[-1]
+        
+        if len(inp.shape) == 3:
+            inp = inp[0].cuda() #(L/Bt, 512)
+        else:
+            inp = inp.cuda() # (Bt, 512)
         bt = inp.shape[0]
 
         s_h, prob = model(inp, soft = True) # s_h - (L, 1, 512)
         s_h = s_h[:,0,:]
         
 #         rs = rebuild_f(s_h).unsqueeze(dim = 0)
-
-        train_mel_mx = melMSELoss(s_h, inp)
+        if new_mel:
+            train_mel_mx = melMSELoss(s_h, inp)
+        else:
+            train_mel_mx = melMSELoss_short(s_h, inp)
+#         
         mel_loss.append(train_mel_mx.cpu().data.numpy())
         
         # prob.shape -> (bs, 256, num_m)
@@ -212,30 +222,22 @@ while 1:
             entp = entropy_prob(prob)
             train_etp.append(entp.cpu().data.numpy())
 
-        loss = weight_mse * criterion(s_h, inp)\
+        loss = weight_mse * mse_error\
         + weight_qtz * loss_qtz\
         + weight_mel * train_mel_mx
 
-#         print('mse', criterion(s_h, inp))
-#         print('qtz', loss_qtz)
-#         print('melcpu', train_mel_mx)
-#         print('melgpu', train_mel_mx1)
 
         if model.etp == 1:
             control = 1
             loss += weight_etp * ((target - entp)**2).cuda()
 
-#         print(model.means)
         optimizer.zero_grad()
         loss.backward()
-#         print(model.means.grad)
         optimizer.step()
         
-#         if k==30:
-#             break
         if debugging:
             break
-#     print(model.means)    
+            
     end = time.time()
     Epoch_info = 'epoch_{}| Time:{:.0f} | Control:{:.0f} | Stage: {} | Itermax: {} | etp:{} '.format(t, end-start, control, model.stage, itermax, model.etp)
     print(Epoch_info)
@@ -243,7 +245,7 @@ while 1:
         with open(result_path, 'a') as the_file:
             the_file.write(Epoch_info+'\n')
 
-    h_x_score, h_rx_score, max_single_rx, arg = test_base_clean(False, test_loader, model, window_in_data, debugging)
+    h_x_score, h_rx_score, pesq_score, max_single_rx, arg = test_base_clean(False, test_loader, model, window_in_data, debugging, model_name)
     
     entropy = 0
 
@@ -252,8 +254,8 @@ while 1:
         
     epoch_list.append((h_rx_score, entropy))
     
-    numbers = 'Train_loss: mse_loss: {:.2f} mel_loss: {:.2f} qtz_loss: {:.2f}\n|Test-hard x: {:.2f} rx: {:.2f} |Entropy :  {:.2f}'\
-          .format(np.mean(mse_loss), np.mean(mel_loss), np.mean(qtz_loss), h_x_score, h_rx_score, entropy)
+    numbers = '|Test-hard x: {:.2f} rx: {:.2f} pesq: {:.2f} |Entropy :  {:.2f} | Train_loss: mse_loss: {:.2f} mel_loss: {:.2f} qtz_loss: {:.2f}\n'\
+          .format(h_x_score, h_rx_score, pesq_score, entropy, np.mean(mse_loss), np.mean(mel_loss), np.mean(qtz_loss))
     print(numbers)
     if not debugging:
         with open(result_path, 'a') as the_file:
@@ -289,17 +291,17 @@ while 1:
 #         model.max_score = 0
 #         itermax = 0
     
-#     if model.stage == 1 and model.etp == 0 and itermax >= 3:
-#         if not debugging:
-# #             model = torch.load(model_path)        
-#             torch.save(model, '../models/{}_stage1ept0.model'.format(model_name)) 
-#             print('saved model at ../models/{}_stage1ept0.model'.format(model_name))
-#             with open(result_path, 'a') as the_file:
-#                 the_file.write('saved at ../models/{}_stage1ept0.model\n'.format(model_name))
-#         model.etp = 1
-#         itermax = 0
-#         model.max_score = 0
-#         max_sdr = (0,0,0,0)
+    if model.stage == 1 and model.etp == 0 and itermax >= 3:
+        if not debugging:
+#             model = torch.load(model_path)        
+            torch.save(model, '../models/{}_stage1ept0.model'.format(model_name)) 
+            print('saved model at ../models/{}_stage1ept0.model'.format(model_name))
+            with open(result_path, 'a') as the_file:
+                the_file.write('saved at ../models/{}_stage1ept0.model\n'.format(model_name))
+        model.etp = 1
+        itermax = 0
+        model.max_score = 0
+        max_sdr = (0,0,0,0)
 
 #     if model.stage == 1 and itermax >= 2:
 #     if model.stage == 1 and itermax >= 5 and model.etp == 1 :
@@ -314,6 +316,6 @@ while 1:
 # #         max_sdr = (0,0,0,0)
 #         print('Enter stage 2')
 
-    if model.etp == 1 and itermax > itm:
-        print('over')
-        break
+#     if model.etp == 1 and itermax > itm:
+#         print('over')
+#         break

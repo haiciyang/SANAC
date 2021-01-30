@@ -87,7 +87,7 @@ class Bottleneck_new(nn.Module):
         
         kernel_size = 9
 #         width = in_plane//4
-        width = 25
+        width = 20
         padding_size = (dilation * (kernel_size-1))//2
         
         # Both self.conv2 and self.downsample layers downsample the input when stride != 1

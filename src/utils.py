@@ -17,6 +17,7 @@ import time
 import IPython.display as ipd
 from IPython.display import clear_output
 import math
+import soundfile as sf
 
 
 def SISDR(s,sr,  cuda = False):
@@ -41,20 +42,6 @@ def SDR(s, sr, cuda = False): # input (50, 512), (50, 512)
     else:
         return sdr.cpu().data.numpy()
 
-def melMSELoss(s, sr, n_mels = [8, 16, 32, 128]): # input waveform(torch.Tensor)
-    
-    loss = 0
-    eps = 1e-20
-    mse = nn.MSELoss()
-    for n in n_mels:
-        s_mel = torchaudio.transforms.MelSpectrogram(n_fft=512, n_mels=n)(s)
-        sr_mel = torchaudio.transforms.MelSpectrogram(n_fft=512, n_mels=n)(sr)
-        s_mel = torch.log(s_mel + eps)
-        sr_mel = torch.log(sr_mel + eps)
-        m = mse(s_mel, sr_mel)
-        loss += m
-    return loss/len(n_mels) 
-
 
 def l1Loss(s, sr): # input waveform(torch.Tensor)
     
@@ -68,7 +55,7 @@ def l1Loss(s, sr): # input waveform(torch.Tensor)
     return loss
 
 
-def rebuild(output, overlap = 64):
+def rebuild(output, overlap = 32):
     output = output.cpu()
     len_wav = len(output) * (512 - overlap) + overlap
     wave = torch.zeros(len_wav)
@@ -83,8 +70,8 @@ def rebuild_extraWindow(output, overlap = 32):
     output = output.detach().cpu().data.numpy()
     len_wav = len(output) * (512 - overlap) + overlap
     
-    window = np.hamming(overlap*2) 
-    window = np.concatenate((window[:overlap],np.ones(512-overlap*2),window[overlap:]))
+    window = np.hanning(overlap*2-1) 
+    window = np.concatenate((window[:overlap],np.ones(512-overlap*2),window[overlap-1:]))
     window = window.reshape(1,-1)
     window = window.astype(np.float32)
     
@@ -190,7 +177,6 @@ def test_base(soft, test_loader, model, window_in_data, debugging):
         
         rx = rebuild_f(x_h).unsqueeze(dim = 0)
         rx_sdr = SISDR(wave_x, rx)
-
         rx_sdr_list.append(rx_sdr)
         
         if max_rx_sdr < rx_sdr:
@@ -205,45 +191,57 @@ def test_base(soft, test_loader, model, window_in_data, debugging):
     
     return  x_score, rx_score, max_rx, arg
 
-def test_base_clean(soft, test_loader, model, window_in_data, debugging):
-
-    x_sdr_list = []
-    rx_sdr_list = []
-    max_rx_sdr = 0
-    max_rx = None
+def test_base_clean(soft, test_loader, model, window_in_data, debugging, model_name):
     
-    if window_in_data:
-        rebuild_f = rebuild
-    else:
-        rebuild_f = rebuild_extraWindow
+    with torch.no_grad():
+        model.eval()
+        x_sdr_list = []
+        rx_sdr_list = []
+        max_rx_sdr = 0
+        max_rx = None
 
-    i = 0
-    for wave, inp in test_loader: 
-#     for wave_s, wave, source, inp in test_loader: 
+        if window_in_data:
+            rebuild_f = rebuild
+        else:
+            rebuild_f = rebuild_extraWindow
 
-        inp = inp[0].cuda()
-        x_h, arg = model(inp, soft=soft)
-        x_h = x_h[:, 0, :]
+        i = 0
+        for data in test_loader:
+        #  c, c_l
+        #  c, x, c_l, x_l
+            inp = data[-1]
+            if len(data)==2:
+                wave = data[0]
+            else:
+                wave = data[1]
+
+            inp = inp[0].cuda()
+            x_h, arg = model(inp, soft=soft)
+            x_h = x_h[:, 0, :]
+            
+
+            x_sdr_list.append(SISDR(inp, x_h))
+
+            rx = rebuild_f(x_h).unsqueeze(dim = 0)
+    #         print(wave.shape, )
+            rx_sdr = SISDR(wave, rx)
+            rx_sdr_list.append(rx_sdr)
+
+    #         print(type(wave), wave.shape)
+    #         print(type(rx), rx.shape)
+
+            if max_rx_sdr < rx_sdr:
+                max_rx_sdr = rx_sdr
+                max_rx = (wave, rx)
+
+            if debugging:
+                break
         
-        x_sdr_list.append(SISDR(inp, x_h))
-        
-        rx = rebuild_f(x_h).unsqueeze(dim = 0)
-#         print(wave.shape, )
-        rx_sdr = SISDR(wave, rx)
-
-        rx_sdr_list.append(rx_sdr)
-        
-        if max_rx_sdr < rx_sdr:
-            max_rx_sdr = rx_sdr
-            max_rx = (wave, rx)
-
-        if debugging:
-            break
+        rx_score = np.mean(rx_sdr_list)
+        x_score = np.mean(x_sdr_list)
+        pesq_score = calculate_pesq(model, window_in_data, soft, model_name)
     
-    rx_score = np.mean(rx_sdr_list)
-    x_score = np.mean(x_sdr_list)
-    
-    return  x_score, rx_score, max_rx, arg
+    return  x_score, rx_score, pesq_score, max_rx, arg
 
 import collections
 
@@ -307,7 +305,102 @@ def pesq(reference, degraded, sample_rate=None, program='pesq'):
     last_line = out.split('\n')[-2]
     pesq_wb = float(last_line.split()[-1:][0])
     return pesq_wb
+  
+        
+def load_trim_clean(wavpath, overlap=64, window_in_data = False):
+    
+    window = np.hanning(overlap*2-1) 
+    window = np.concatenate((window[:overlap],np.ones(512-overlap*2),window[overlap-1:]))
+    window = window.reshape(1,-1)
+    window = window.astype(np.float32)
+    
+    max_c = 22.5455
+#     max_c = 35
+    
+    try:
+        c, cr = librosa.load(wavpath, sr = None)
+        c /= np.std(c)
+    except OSError:
+        print('errorfile:',wavpath)
+    
+    c_l = []
+    
+    for i in range(0, len(c), 512 - overlap):
+        if i + 512 > len(c):
+            break
+        c_l.append(c[i:i+512])
+    c_l = np.array(c_l)
+    c = c[:len(c_l)*(512-overlap)+overlap]
+    
+    if window_in_data:
+        c_l = c_l * window
 
+    return c/max_c, c_l/max_c
+
+def gen_clean_sound(i=0,window_in_data=False, overlap=32):
+    wavpath0 = '/media/sdc1/Data/timit-wav/test/dr5/mrws1/sx140.wav'
+    wavpath1 = '/media/sdc1/Data/timit-wav/test/dr1/faks0/sa1.wav'
+    wavpath2 = '/media/sdc1/Data/timit-wav/test/dr1/mreb0/sa2.wav'
+    wavpath3 = '/media/sdc1/Data/timit-wav/test/dr3/mkch0/sx28.wav'
+    wavpath4 = '/media/sdc1/Data/timit-wav/test/dr3/fkms0/sx50.wav'
+    wavpath5 = '/media/sdc1/Data/timit-wav/test/dr5/fjcs0/sx139.wav'
+    wavpath6 = '/media/sdc1/Data/timit-wav/test/dr4/fsem0/sx28.wav'
+    wavpath7 = '/media/sdc1/Data/timit-wav/test/dr4/mkcl0/sx191.wav'
+    wavpath8 = '/media/sdc1/Data/timit-wav/test/dr6/flnh0/sx134.wav'
+    wavpath9 = '/media/sdc1/Data/timit-wav/test/dr6/mesd0/sx12.wav'
+
+    path_name = [wavpath0, wavpath1, wavpath2,wavpath3,wavpath4,wavpath5,\
+                 wavpath6,wavpath7,wavpath8,wavpath9,]
+    path = path_name[i]
+    
+    c, c_l = load_trim_clean(path, window_in_data=window_in_data, overlap=overlap)
+
+    c_l = torch.Tensor(c_l)
+    
+    return c, c_l
+
+def generate_result(model, x_l, window_in_data, overlap, soft):
+    model.eval()
+    n_h = None
+#     s_h, n_h, prob_s, prob_n = model(x_l.cuda(),soft = False)
+    with torch.no_grad():
+        output = model(x_l.cuda(),soft = soft)
+    if window_in_data:
+        rebuild_f = rebuild
+    else:
+        rebuild_f = rebuild_extraWindow
+        
+    s_h = output[0]
+    s_h = s_h[:,0,:]
+    if len(output) == 4:
+        n_h = output[1]        
+        
+    rs = rebuild_f(s_h, overlap=overlap).cpu().data.numpy()
+    if not isinstance(n_h, type(None)):
+        rx = rebuild_f(s_h+n_h, overlap=overlap).cpu().data.numpy()
+    else:
+        rx = rs
+    
+    return rs, rx
+
+def calculate_pesq(model, window_in_data, soft, model_name):
+    
+    pesq_list = []
+    
+    with torch.no_grad():
+        
+        model.eval()
+        
+        for i in range(10):
+            
+            c, c_l = gen_clean_sound(i, window_in_data, overlap=32)
+            rs, rx = generate_result(model, c_l, window_in_data, 32, soft)
+            sf.write('../training_samples/ori_sig_'+model_name+'.wav', c, 16000, 'PCM_16')
+            sf.write('../training_samples/dec_sig_'+model_name+'.wav', rx, 16000, 'PCM_16')
+            the_pesq = pesq('../training_samples/ori_sig_'+model_name+'.wav','../training_samples/dec_sig_'+model_name+'.wav', 16000)
+            pesq_list.append(the_pesq)
+    
+    return np.mean(pesq_list)
 
 def freqToMel(freq):
     return 1127.01048 * math.log(1 + freq / 700.0)
@@ -356,7 +449,7 @@ def melFilterBank(numCoeffs, fftSize = None):
         
         startRange = int(melCenterFilters[i - 1])
         midRange   = int(melCenterFilters[i])
-        endRange   = int(melCenterFilters[i + 1
+        endRange   = int(melCenterFilters[i + 1])
         
         for j in range(startRange, midRange):
             filter[j] = (float(j) - startRange) / (midRange - startRange)
@@ -398,10 +491,38 @@ def melMSELoss(s, sr, n_mels = [8, 16, 32, 128]):
     for filterbank in MEL_FILTERBANKS:
         # s_spec.shape -> [Batch, 257]
         # filterbank -> [257, 8]
+        
         s_melspec = torch.log(torch.matmul(s_spec, filterbank) + 1e-20)
         sr_melspec = torch.log(torch.matmul(sr_spec, filterbank) + 1e-20)
 
-        error = torch.sqrt(mse(s_melspec, sr_melspec))
+        error = torch.sqrt(mse(s_melspec, sr_melspec)+1e-20)
         loss += error
         
+    return loss/len(n_mels)
+
+
+def melMSELoss_short(s, sr, n_mels = [8, 16, 32, 128]): 
+
+    assert s.shape[1] == 512
+    assert sr.shape[1] == 512
+
+    def no_window(length):
+        return torch.ones(length)
+
+    loss = 0
+    eps = 1e-20
+    mse = nn.MSELoss().cuda()
+    s = s.cuda()
+    sr = sr.cuda()
+    for n in n_mels:
+        melspec = torchaudio.transforms.MelSpectrogram(n_fft=512, n_mels=n, window_fn=no_window).cuda() 
+        s_mel = melspec(s)[:,:,1] # shape - [bt, n] 
+        sr_mel = melspec(sr)[:,:,1]
+        # s_mel.shape -> [bt, n]
+
+        s_mel = torch.log(s_mel + eps)
+        sr_mel = torch.log(sr_mel + eps)
+        error = mse(s_mel, sr_mel) #/len(s_mel)
+        loss += error
+
     return loss/len(n_mels)

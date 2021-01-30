@@ -54,6 +54,11 @@ class Baseline_0105(nn.Module):
                 block(filters, dilation=2)
         )
         
+        self.upsample_layer = nn.Sequential(
+            nn.Conv1d(filters, filters, 9, padding=4),
+            self.atv_f
+        )
+
         filters2 = filters//2 if sr else filters
         self.dec_out = nn.Sequential(
             block(filters2, dilation=1),
@@ -62,7 +67,6 @@ class Baseline_0105(nn.Module):
 #             nn.Tanh()
         )
         
-    
     def forward(self, x, soft=True): # Coding first
 
         # Encoder
@@ -80,6 +84,7 @@ class Baseline_0105(nn.Module):
         # Decoder
         s_hat = self.dec_in(code)
         if self.sr:
+            s_hat = self.upsample_layer(s_hat)
             s_hat = self.sub_pixel(s_hat).cuda()
         s_hat = self.dec_out(s_hat) # filters//2  
                 
@@ -110,11 +115,7 @@ class Baseline_0105(nn.Module):
         # means shape - (d, num_m)
         
         mat = torch.sub(codes[:,:,:,None], means[None,:,None,:]) ** 2 # (bs, d, L, num_m)
-#         print(mat.shape)
-#         print(codes[60])
-#         print(codes[60,:,0], mat[60,:,0,:])
-#         print(codes[60,:,10], mat[60,:,10,:])
-#         print(codes[60,:,20], mat[60,:,20,:])
+
         dist_mat = torch.sum(mat, dim = 1) # shape(bs, 512, 32)
         
         # Replace hidden features with means based on probability calculated by softmax
@@ -140,19 +141,36 @@ class Baseline_0105(nn.Module):
             # arg_idx is only used for entropy calculating when doing hard argmax in test
             return x, arg_idx
                                   
-    def sub_pixel(self, x):  
+#     def sub_pixel(self, x):  
         
-        # x.shape - (bs, self.d, L)
-        # output.shape - (bs, self.d//2, L*2)
+#         # x.shape - (bs, self.d, L)
+#         # output.shape - (bs, self.d//2, L*2)
         
-        bs = x.shape[0]
-        d = x.shape[1] 
-        L = x.shape[2]
-        up_x = torch.zeros(bs, d//2, L*2).cuda()
-        for i in range(0, d//2):
-            x_sub = x[:, i*2:(i+1)*2, :] # (bs, 2, L)
-            up_x[:,i,:] = x_sub.transpose(1,2).reshape(bs, 1, L*2)[:,0,:]
+#         bs = x.shape[0]
+#         d = x.shape[1] 
+#         L = x.shape[2]
+#         up_x = torch.zeros(bs, d//2, L*2).cuda()
+#         for i in range(0, d//2):
+#             x_sub = x[:, i*2:(i+1)*2, :] # (bs, 2, L)
+#             up_x[:,i,:] = x_sub.transpose(1,2).reshape(bs, 1, L*2)[:,0,:]
+        
+#         return up_x
             
-        return up_x
+    def sub_pixel(self, x):
+        # x.shape -> (B, C, L)
+        bs = x.shape[0]
+        C = x.shape[1] 
+        L = x.shape[2]
+        n = 2
+
+        x = x.permute(0,2,1)
+        x = x.reshape(-1, L, C//n, n)
+        x = x.permute(0,1,3,2)
+        x = x.reshape(-1, L*2, C//n)
+        x = x.permute(0,2,1)
+
+        return x
+            
+
 
     
