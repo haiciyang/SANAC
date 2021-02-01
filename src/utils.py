@@ -74,8 +74,8 @@ def rebuild_extraWindow(output, overlap = 32):
     window = np.concatenate((window[:overlap],np.ones(512-overlap*2),window[overlap-1:]))
     window = window.reshape(1,-1)
     window = window.astype(np.float32)
-    
     output *= window
+    
     wave = np.zeros(len_wav)
     for i in range(len(output)):
 #         print(i)
@@ -83,10 +83,11 @@ def rebuild_extraWindow(output, overlap = 32):
     
     return torch.tensor(wave, dtype=torch.float).requires_grad_()
 
-def test_newData(soft, test_loader, model, window_in_data, debugging):
+def test_newData(soft, test_loader, model, window_in_data, debugging, model_name):
     
     with torch.no_grad():
-#     model.eval()
+        model.eval()
+        
         sdr_list_s = []
     #     sdr_list_n = []
         sdr_list_rs = []
@@ -103,19 +104,20 @@ def test_newData(soft, test_loader, model, window_in_data, debugging):
 
         i = 0
         for wave_s, wave_x, source, mixture in test_loader: 
-
-            source = source[0]
+            
+            
+            source = source[0] # [L, 512]
             mixture = mixture[0]
-    #         print(data)
             noise = (mixture-source).cuda()
             source = source.cuda()
             mixture = mixture.cuda()
             s_h, n_h, arg_s, arg_n = model(mixture, soft=soft)
+            s_h = s_h[:,0,:]
+            n_h = n_h[:,0,:]
 
             sdr_list_s.append(SISDR(source, s_h))    
     #         sdr_list_n.append(SISDR(noise, n_h))
-
-
+    
             rs = rebuild_f(s_h).unsqueeze(dim = 0)
             rs_sdr = SISDR(wave_s, rs)
             if not isinstance(n_h, type(None)):
@@ -124,19 +126,18 @@ def test_newData(soft, test_loader, model, window_in_data, debugging):
             else:
                 rx_sdr = SISDR(wave_x, rs)
 
-
             sdr_list_rs.append(rs_sdr)
             sdr_list_rx.append(rx_sdr)
 
             start_sdr = SISDR(wave_s, wave_x/max(wave_x[0]))
             sdr_list_diff.append(rs_sdr-start_sdr)
 
-            if max_rs_sdr < rs_sdr:
-                max_rs_sdr = rs_sdr
-                if not isinstance(n_h, type(None)): 
-                    max_rs = (wave_x, rs, rn)
-                else:
-                    max_rs = (wave_x, rs)
+#             if max_rs_sdr < rs_sdr:
+#                 max_rs_sdr = rs_sdr
+#                 if not isinstance(n_h, type(None)): 
+#                     max_rs = (wave_x, rs, rn)
+#                 else:
+#                     max_rs = (wave_x, rs)
 
             if debugging:
                 break
@@ -146,9 +147,10 @@ def test_newData(soft, test_loader, model, window_in_data, debugging):
     #     n_score = np.mean(sdr_list_n)
         rs_score = np.mean(sdr_list_rs)
         rx_score = np.mean(sdr_list_rx)
+        pesq_score = calculate_pesq(model, window_in_data, soft, model_name)
         diff_score = np.mean(sdr_list_diff)
 
-    return s_score, rs_score, rx_score, diff_score, max_rs, arg_s, arg_n
+    return s_score, rs_score, rx_score, diff_score, pesq_score, arg_s, arg_n
 
 def test_base(soft, test_loader, model, window_in_data, debugging):
 
@@ -373,8 +375,8 @@ def generate_result(model, x_l, window_in_data, overlap, soft):
     s_h = output[0]
     s_h = s_h[:,0,:]
     if len(output) == 4:
-        n_h = output[1]        
-        
+        n_h = output[1]
+        n_h = n_h[:,0,:]
     rs = rebuild_f(s_h, overlap=overlap).cpu().data.numpy()
     if not isinstance(n_h, type(None)):
         rx = rebuild_f(s_h+n_h, overlap=overlap).cpu().data.numpy()

@@ -32,10 +32,9 @@ from Baseline_0105_Ks import Baseline_0105 as Model
 from utils import *
 import glob
 
-debugging = False
+debugging = True
 # Won't write out results in file or save models if debugging is True
 print('debugging:',debugging)
-
 
 # Model Define
 
@@ -141,6 +140,7 @@ else:
 if not debugging:
     with open(result_path, 'a') as f:
         f.write('Model Loaded:'+ Model.__name__ +'\n')
+print('Model Loaded:'+ Model.__name__ +'\n')
 
 criterion = nn.MSELoss()
 # optimizer = torch.optim.Adam(list(model.parameters()) + [model.means], lr=lr, betas = (0.99, 0.999))

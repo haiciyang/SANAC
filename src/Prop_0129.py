@@ -3,22 +3,23 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.autograd import Variable
 import numpy as np
-from Blocks import Bottleneck_new as block
+from Blocks import Bottleneck_new
 
 
 class Prop_0129(nn.Module):
     def __init__(self, block = Bottleneck_new, scale = 1, filters = 40, d_s = 15, d_n = 15, f2 = 50, num_m = 32, \
-                 sr =False, ratio = 0.75):
+                 sr =False, ratio = 1/3):
         
         super(Prop_0129, self).__init__()
         
-        self.d = d
+        self.d = d_s
         self.num_m = num_m
         self.scale = scale
         self.sr = sr
         self.max_score = 0 # the besdt score saved by the model
         self.etp = 0 # butten for entropy control 0-off; 1-on
         self.atv_f = nn.LeakyReLU()
+        self.ratio = ratio
 
         self.initiated = False
         self.stage = 0  
@@ -44,7 +45,7 @@ class Prop_0129(nn.Module):
         self.enc_2 = nn.Sequential(
             block(filters//2, dilation=1),
             block(filters//2, dilation=2),
-            nn.Conv1d(filters, self.d, 9, padding=4),
+            nn.Conv1d(filters//2, self.d, 9, padding=4),
             nn.Tanh()
         )       
 
@@ -100,33 +101,33 @@ class Prop_0129(nn.Module):
             code_n, arg_idx_n = self.code_assign(code_n, self.mean_n, soft = soft)
 
             
-#             if self.stage == 2:
+            if self.stage == 2:
 
                 
-#                 code_s = self.addup_in(code_s)  # d_s -> f2
-#                 code_n = self.addup_in(code_n)
+                code_s = self.addup_in(code_s)  # d_s -> f2
+                code_n = self.addup_in(code_n)
                     
-#                 if self.sr:
-#                     code_s = self.sub_pixel(code_s).cuda() # f2 -> f2//2
-#                     code_n = self.sub_pixel(code_n).cuda()
+                if self.sr:
+                    code_s = self.sub_pixel(code_s).cuda() # f2 -> f2//2
+                    code_n = self.sub_pixel(code_n).cuda()
                     
-#                     code_s = self.channel_change_2(code_s) # f2//2 -> f2
-#                     code_n = self.channel_change_2(code_n)
+                    code_s = self.channel_change_2(code_s) # f2//2 -> f2
+                    code_n = self.channel_change_2(code_n)
                     
-#                 code = torch.cat((code_s, code_n), 1)  # f2 -> 2*f2
-#                 code = self.addup_out(code)         # 2*f2
-#                 code_s = code[:, :code.shape[1]//2, :] # 2*f2 -> f2
-#                 code_n = code[:, code.shape[1]//2:, :]
+                code = torch.cat((code_s, code_n), 1)  # f2 -> 2*f2
+                code = self.addup_out(code)         # 2*f2
+                code_s = code[:, :code.shape[1]//2, :] # 2*f2 -> f2
+                code_n = code[:, code.shape[1]//2:, :]
                     
-#                 s_hat = self.dec_2s(code_s) # f2
-#                 n_hat = self.dec_2s(code_n) # 
+                s_hat = self.dec_2s(code_s) # f2
+                n_hat = self.dec_2s(code_n) # 
 
-#                 s_hat = s_hat.view(-1, s_hat.shape[1] * s_hat.shape[-1])
-#                 n_hat = n_hat.view(-1, n_hat.shape[1] * n_hat.shape[-1])
-#                 s_hat = torch.tanh(self.fc_2(s_hat))  # f2
-#                 n_hat = torch.tanh(self.fc_2(n_hat))
+                s_hat = s_hat.view(-1, s_hat.shape[1] * s_hat.shape[-1])
+                n_hat = n_hat.view(-1, n_hat.shape[1] * n_hat.shape[-1])
+                s_hat = torch.tanh(self.fc_2(s_hat))  # f2
+                n_hat = torch.tanh(self.fc_2(n_hat))
                     
-#                 return s_hat, n_hat , arg_idx_s, arg_idx_n     
+                return s_hat, n_hat , arg_idx_s, arg_idx_n     
 
 
         s_hat = self.dec_in(code_s) # d_s -> filters
@@ -145,137 +146,6 @@ class Prop_0129(nn.Module):
         return s_hat, n_hat , arg_idx_s, arg_idx_n
 
     
-    def forward_sp(self, x, soft = True):
-        
-        # Encoder
-        
-        x = x.view(-1, 1, x.shape[1]) # -- (N, C, L)
-        x = self.enc(x)  
-#         print(x.dtype)
-        
-        code_s = x[:, :x.shape[1]//2, :]
-        code_n = x[:, x.shape[1]//2:, :]
-        
-        code_s = self.mid_s(code_s)
-        code_n = self.mid_s(code_n)
-    
-        arg_idx_s = None
-        arg_idx_n = None
-        n_hat = None
-        
-        if self.stage >= 1:
-            
-            if self.initiated == False:
-                self.mean_s = self.code_init(code_s, self.d_s, self.num_s)
-                self.mean_n = self.code_init(code_n, self.d_n, self.num_n)
-                self.initiated = True
-            
-            code_s, arg_idx_s = self.code_assign(code_s, self.mean_s, soft = soft)
-            code_n, arg_idx_n = self.code_assign(code_n, self.mean_n, soft = soft)
-
-            
-            if self.stage == 2:
-                
-#                 s_hat = self.dec_sr_in(code_s) # -- shape (bs, d//2, 256)
-#                 n_hat = self.dec_sr_in(code_n) # -- shape (bs, d//2, 256)
-
-                
-#                 code_s = self.sub_pixel(code_s).cuda() #  -- shape (bs, d//4, 512)
-#                 code_n = self.sub_pixel(code_n).cuda()
-                                  
-#                 code = torch.cat((code_s, code_n), 1) # shape (bs, d//2, 512)
-                code_s = self.addup_sr_in(code_s)
-                code_n = self.addup_sr_in(code_n)
-                
-                code_s = self.sub_pixel(code_s).cuda()
-                code_n = self.sub_pixel(code_n).cuda()
-                
-                code = torch.cat((code_s, code_n), 1)
-                code = self.addup_sr_out(code)
-                code_s = code[:, :code.shape[1]//2, :]
-                code_n = code[:, code.shape[1]//2:, :]
-                
-                s_hat = self.dec_2s(code_s) # -- shape (bs, filters//2, 512)
-                n_hat = self.dec_2s(code_n) # -- shape (bs, filters//2, 512)
-
-                s_hat = s_hat.view(-1, s_hat.shape[1] * s_hat.shape[-1])
-                n_hat = n_hat.view(-1, n_hat.shape[1] * n_hat.shape[-1])
-                s_hat = torch.tanh(self.fc_2s(s_hat))  
-                n_hat = torch.tanh(self.fc_2s(n_hat))
-                
-                return s_hat, n_hat , arg_idx_s, arg_idx_n
-                
-
-        s_hat = self.dec_sr_in(code_s) # -- shape (bs, d//2, 256)
-        n_hat = self.dec_sr_in(code_n) # -- shape (bs, d//2, 256)
-        
-        s_hat = self.sub_pixel(s_hat).cuda() # (bs, d//4, 512)
-        n_hat = self.sub_pixel(n_hat).cuda() # (bs, d//4, 512)
-                                
-        s_hat = self.dec_sr_out(s_hat) 
-        n_hat = self.dec_sr_out(s_hat) 
-                
-        s_hat = s_hat.view(-1, s_hat.shape[1] * s_hat.shape[-1])
-        n_hat = n_hat.view(-1, n_hat.shape[1] * n_hat.shape[-1])
-        s_hat = torch.tanh(self.fc_sr(s_hat))  
-        n_hat = torch.tanh(self.fc_sr(n_hat))
-                
-        return s_hat, n_hat , arg_idx_s, arg_idx_n
-    
-    
-    def forward_half(self, x, soft=True): # Coding first
-
-        # Encoder
-        
-        x = x.view(-1, 1, x.shape[1]) # -- (N, C, L)
-        x = self.enc(x)  
-#         print(x.dtype)
-        
-        code_s = x[:, :x.shape[1]//2, :]
-        code_n = x[:, x.shape[1]//2:, :]
-    
-        arg_idx_s = None
-        arg_idx_n = None
-        n_hat = None
-        
-        if self.stage >= 1:
-            
-            if self.initiated == False:
-                self.mean_s = self.code_init(code_s, self.d_s, self.num_s)
-                self.mean_n = self.code_init(code_n, self.d_n, self.num_n)
-                self.initiated = True
-            
-            code_s, arg_idx_s = self.code_assign(code_s, self.mean_s, soft = soft)
-            code_n, arg_idx_n = self.code_assign(code_n, self.mean_n, soft = soft)
-
-            
-            if self.stage == 2:
-                
-                code = torch.cat((code_s, code_n), 1)
-                code = self.addup_layers(code)
-                code_s = code[:, :code.shape[1]//2, :]
-                code_n = code[:, code.shape[1]//2:, :]
-                
-                s_hat = self.dec_2(code_s) # -- shape (bs, d, 512)
-                n_hat = self.dec_2(code_n) # -- shape (bs, d, 512)
-
-                s_hat = s_hat.view(-1, s_hat.shape[1] * s_hat.shape[-1])
-                n_hat = n_hat.view(-1, n_hat.shape[1] * n_hat.shape[-1])
-                s_hat = torch.tanh(self.fc_2(s_hat))  
-                n_hat = torch.tanh(self.fc_2(n_hat))
-                
-                return s_hat, n_hat , arg_idx_s, arg_idx_n                
-
-        s_hat = self.dec_1(code_s) # -- shape (bs, d, 512)
-        n_hat = self.dec_1(code_n) # -- shape (bs, d, 512)
-
-        s_hat = s_hat.view(-1, s_hat.shape[1] * s_hat.shape[-1])
-        n_hat = n_hat.view(-1, n_hat.shape[1] * n_hat.shape[-1])
-        s_hat = torch.tanh(self.fc_1(s_hat))  
-        n_hat = torch.tanh(self.fc_1(n_hat))
-                
-        return s_hat, n_hat , arg_idx_s, arg_idx_n
-
 
     def code_init(self, codes, d, num_m):
         
