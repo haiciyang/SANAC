@@ -25,13 +25,14 @@ time.tzset()
 import IPython.display as ipd
 from IPython.display import clear_output
 from Blocks import Bottleneck_new
-from Prop import Prop as Model
+# from Prop import Prop as Model
 # from Prop_mixture import Prop_mixture as Model
 from Prop_0129 import Prop_0129 as Model
 from utils import *
 import glob
 
 debugging = False
+
 # Won't write out results in file or save models if debugging is True
 print('debugging:',debugging)
 
@@ -41,7 +42,7 @@ d = 1
 m = 32
 sr = True
 lr = 0.0001
-br = 16
+br = 8
 scale = 1000
 label = time.strftime("%m%d_%H%M%S")
 target = br/8 if sr else br/16
@@ -51,10 +52,12 @@ weight_mel = 0.5
 weight_qtz = 0.5
 weight_etp_total = 0.1
 weight_etp_ratio = 0.05
-ratio = 1/3
+ratio = 1.0
 random_data = True
 new_mel = False
 db = '0db'
+mse_sub_w = [1, 1, 0]
+update_ratio = False
 
 
 if new_mel:
@@ -102,7 +105,7 @@ else:
 result_path = '../Results/{}.txt'.format(model_name)
 model_path = '../models/{}.model'.format(model_name)
 print('Model Name:', model_name)
-hyperpara = ' c_1stDiv {}\n centroid_d {}\n sr {}\n bitrate {}\n lr {}\n weight_mse {}\n weight_mel {}\n weight_qtz {} \n weight_etp_total {} \n window_etp_ratio {}  \n window_in_data {} \n scale {} \n num_m {} \n random_data {} \n new_mel {}'.format(filters, d, sr, br, lr, weight_mse, weight_mel, weight_qtz, weight_etp_total, weight_etp_ratio, window_in_data, scale, m, random_data, new_mel)
+hyperpara = ' c_1stDiv {}\n centroid_d {}\n sr {}\n bitrate {}\n lr {}\n weight_mse {}\n weight_mel {}\n weight_qtz {} \n weight_etp_total {} \n weigh_etp_ratio {} \n mse_sub_w {} \n ratio {} \n window_in_data {} \n scale {} \n num_m {} \n random_data {} \n new_mel {} \n udpate_ratio {}'.format(filters, d, sr, br, lr, weight_mse, weight_mel, weight_qtz, weight_etp_total, weight_etp_ratio, mse_sub_w, ratio, window_in_data, scale, m, random_data, new_mel, update_ratio)
 print(hyperpara)
 
 # ============ Note ============
@@ -141,12 +144,13 @@ if not debugging:
         f.write('Model Loaded:'+ Model.__name__ +'\n')
 
 criterion = nn.MSELoss()
-# optimizer = torch.optim.Adam(list(model.parameters()) + [model.mean_s] + [model.means_n] + [model.ratio], lr=lr, betas = (0.99, 0.999))
-optimizer = torch.optim.Adam(list(model.parameters()) + [model.mean_s] + [model.mean_n], lr=lr, betas = (0.99, 0.999))
+if update_ratio:
+    optimizer = torch.optim.Adam(list(model.parameters()) + [model.mean_s] + [model.mean_n] + [model.ratio], lr=lr, betas = (0.99, 0.999))
+else:
+    optimizer = torch.optim.Adam(list(model.parameters()) + [model.mean_s] + [model.mean_n], lr=lr, betas = (0.99, 0.999))
 t = 0
 print('Model Loaded. Start training...')
 
-# model.stage = 1
 # model.max_score = 0
 #
 epochs = 100
@@ -157,7 +161,6 @@ flct = 0.1
 # etp = 0
 itermax = 0
 itm = 20
-
 
 # Training Process
 
@@ -194,7 +197,8 @@ while 1:
         
         # Calculate losses
         if not isinstance(n_h, type(None)):
-            train_mel = melMSELoss_func(s_h, source) + melMSELoss_func((s_h+n_h), mixture)
+#             train_mel = melMSELoss_func(s_h, source) + melMSELoss_func((s_h+n_h), mixture)
+            train_mel = melMSELoss_func((s_h+n_h), mixture)
         else:
             train_mel = melMSELoss_func(s_h, mixture)
         mel_loss.append(train_mel.cpu().data.numpy())
@@ -216,7 +220,7 @@ while 1:
         qtz_loss.append(loss_qtz.cpu().data.numpy())
         
         
-        mse_error = criterion(n_h+s_h, mixture) + criterion(s_h, source) + criterion(n_h, noise)
+        mse_error = mse_sub_w[0]*criterion(n_h+s_h, mixture) + mse_sub_w[1]*criterion(s_h, source) + mse_sub_w[2]*criterion(n_h, noise)
         mse_loss.append(mse_error.cpu().data.numpy())
         
         
@@ -226,8 +230,8 @@ while 1:
                 
         if model.etp == 1:
             control = 1
-            loss += weight_etp_total * ((target - entp_cl - entp_ns)**2).cuda() \
-                + weight_etp_ratio * ((ratio - entp_ns/entp_cl)**2).cuda()
+            loss += weight_etp_total * ((target - entp_cl - entp_ns)**2)\
+                + weight_etp_ratio * ((model.ratio - entp_ns/entp_cl)**2)
 
         
         optimizer.zero_grad()
@@ -280,6 +284,8 @@ while 1:
     if finetune:
         itm = 40
         torch.save(model, '../models/{}_epoch{}.model'.format(model_name, t))
+    if not debugging:
+        torch.save(model, '../models/{}_epoch{}.model'.format(model_name, t))
         
 #     if model.stage == 0 and itermax >= 5:
 #         if not debugging:
@@ -304,8 +310,7 @@ while 1:
         model.max_score = 0
         max_sdr = (0,0,0,0)
 
-#     if model.stage == 1 and itermax >= 2:
-#     if model.stage == 1 and itermax >= 5 and model.etp == 1 :
+#     if model.stage == 1 and itermax >= 10 and model.etp == 1 :
 #         if not debugging:
 # #             model = torch.load(model_path)
 #             torch.save(model, '../models/{}_stage1ept1.model'.format(model_name)) 
@@ -317,6 +322,6 @@ while 1:
 # #         max_sdr = (0,0,0,0)
 #         print('Enter stage 2')
 
-    if model.etp == 1 and itermax > itm:
-        print('over')
-        break
+#     if model.etp == 1 and itermax > itm:
+#         print('over')
+#         break

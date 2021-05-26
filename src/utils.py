@@ -308,16 +308,15 @@ def pesq(reference, degraded, sample_rate=None, program='pesq'):
     pesq_wb = float(last_line.split()[-1:][0])
     return pesq_wb
   
-        
-def load_trim_clean(wavpath, overlap=64, window_in_data = False):
+
+def load_trim(wavpath, n, db=0, overlap=32, window_in_data = False):
     
     window = np.hanning(overlap*2-1) 
     window = np.concatenate((window[:overlap],np.ones(512-overlap*2),window[overlap-1:]))
     window = window.reshape(1,-1)
     window = window.astype(np.float32)
     
-    max_c = 22.5455
-#     max_c = 35
+    max_x = 48
     
     try:
         c, cr = librosa.load(wavpath, sr = None)
@@ -325,21 +324,35 @@ def load_trim_clean(wavpath, overlap=64, window_in_data = False):
     except OSError:
         print('errorfile:',wavpath)
     
+    n = n[len(n)//2:len(n)//2+len(c)]        
+        
+    scalar = 10.0 ** (0.05 * (db))
+    n /= np.std(n)* scalar
+        
+#     n /= max(abs(c))
+#     c /= max(abs(c))
+    x = c + n
+    
     c_l = []
+    x_l = []
     
     for i in range(0, len(c), 512 - overlap):
         if i + 512 > len(c):
             break
         c_l.append(c[i:i+512])
+        x_l.append(x[i:i+512])
     c_l = np.array(c_l)
+    x_l = np.array(x_l)
     c = c[:len(c_l)*(512-overlap)+overlap]
+    x = x[:len(c)]
     
     if window_in_data:
         c_l = c_l * window
+        x_l = x_l * window
 
-    return c/max_c, c_l/max_c
+    return c/max_x, x/max_x, c_l/max_x, x_l/max_x
 
-def gen_clean_sound(i=0,window_in_data=False, overlap=32):
+def gen_sound(i=0,db=0, window_in_data=False, overlap=32):
     wavpath0 = '/media/sdc1/Data/timit-wav/test/dr5/mrws1/sx140.wav'
     wavpath1 = '/media/sdc1/Data/timit-wav/test/dr1/faks0/sa1.wav'
     wavpath2 = '/media/sdc1/Data/timit-wav/test/dr1/mreb0/sa2.wav'
@@ -351,17 +364,31 @@ def gen_clean_sound(i=0,window_in_data=False, overlap=32):
     wavpath8 = '/media/sdc1/Data/timit-wav/test/dr6/flnh0/sx134.wav'
     wavpath9 = '/media/sdc1/Data/timit-wav/test/dr6/mesd0/sx12.wav'
 
-    path_name = [wavpath0, wavpath1, wavpath2,wavpath3,wavpath4,wavpath5,\
-                 wavpath6,wavpath7,wavpath8,wavpath9,]
+    path_name = [wavpath0, wavpath1, wavpath2,wavpath3,wavpath4,wavpath5,wavpath6,wavpath7,wavpath8,wavpath9]
+    # n_idx = [2, -1, -3, -4, 5, 1]
+
+    # idx = 4
+    names = ['birds', 'computerkeyboard', 'jungle', 'ocean', 'casino', 'eatingchips', 'machineguns',\
+                     'cicadas', 'frogs', 'motorcycles']
+#     i = 1
     path = path_name[i]
-    
-    c, c_l = load_trim_clean(path, window_in_data=window_in_data, overlap=overlap)
+    noise_path = '/media/sdc1/Data/Duan/{}.wav'.format(names[i])
+    n, nr = librosa.load(noise_path, sr=None)
+    # tes, sr = librosa.load(wavpath5, sr=None)
+
+#     db = 5
+    c, x, c_l, x_l = load_trim(path, n, db=db, overlap=32, window_in_data=window_in_data)
 
     c_l = torch.Tensor(c_l)
+#     c = torch.Tensor(c)
+    x_l = torch.Tensor(x_l)
+    #         x = torch.Tensor(x)
     
-    return c, c_l
+    return c, x, c_l, x_l
+
 
 def generate_result(model, x_l, window_in_data, overlap, soft):
+    
     model.eval()
     n_h = None
 #     s_h, n_h, prob_s, prob_n = model(x_l.cuda(),soft = False)
@@ -388,16 +415,14 @@ def generate_result(model, x_l, window_in_data, overlap, soft):
 def calculate_pesq(model, window_in_data, soft, model_name):
     
     pesq_list = []
-    
+
     with torch.no_grad():
-        
         model.eval()
-        
         for i in range(10):
-            
-            c, c_l = gen_clean_sound(i, window_in_data, overlap=32)
-            rs, rx = generate_result(model, c_l, window_in_data, 32, soft)
-            sf.write('../training_samples/ori_sig_'+model_name+'.wav', c, 16000, 'PCM_16')
+            data = gen_sound(i, window_in_data, overlap=32) # c, x, c_l, x_l / c, c_l
+            inp = data[-1] if 'Prop' in model_name else data[-2]
+            rs, rx = generate_result(model, inp, window_in_data, 32, soft)
+            sf.write('../training_samples/ori_sig_'+model_name+'.wav', data[0], 16000, 'PCM_16')
             sf.write('../training_samples/dec_sig_'+model_name+'.wav', rx, 16000, 'PCM_16')
             the_pesq = pesq('../training_samples/ori_sig_'+model_name+'.wav','../training_samples/dec_sig_'+model_name+'.wav', 16000)
             pesq_list.append(the_pesq)

@@ -32,7 +32,7 @@ from Baseline_0105_Ks import Baseline_0105 as Model
 from utils import *
 import glob
 
-debugging = True
+debugging = False
 # Won't write out results in file or save models if debugging is True
 print('debugging:',debugging)
 
@@ -44,7 +44,7 @@ f2 = 60
 m = 32
 sr = True
 lr = 0.0001
-br = 16
+br = 8
 scale = 1000
 label = time.strftime("%m%d_%H%M%S")
 target = br/8 if sr else br/16
@@ -52,7 +52,7 @@ target = br/8 if sr else br/16
 weight_mse = 30
 weight_mel = 0.5
 weight_qtz = 0.5
-weight_etp = 0
+weight_etp = 0.1
 random_data = True
 new_mel = False
 db = '0db'

@@ -26,3 +26,6 @@ epoch_4| Time:430 | Control:0 | Stage: 1 | Itermax: 1 | etp:0
 epoch_5| Time:428 | Control:0 | Stage: 1 | Itermax: 0 | etp:0 
 |Test-hard x: -3.02 rx: 9.34 |Entropy :  1.96
 epoch_6| Time:436 | Control:0 | Stage: 1 | Itermax: 1 | etp:0 
+|Test-hard x: -2.86 rx: 8.19 |Entropy :  1.63
+epoch_7| Time:435 | Control:0 | Stage: 1 | Itermax: 2 | etp:0 
+|Test-hard x: -4.10 rx: 7.39 |Entropy :  1.41
