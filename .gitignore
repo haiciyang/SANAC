@@ -5,3 +5,4 @@ models/
 testuttr/
 Results/
 training_samples/
+__pycache__/
