@@ -1,7 +1,7 @@
 .ipynb_checkpoints/
 Final_Models/
 data/
-models/
+save_models/
 testuttr/
 Results/
 training_samples/
