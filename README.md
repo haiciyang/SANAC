@@ -10,7 +10,7 @@ torchaudio 0.6.0
 - Noise: Duan stational noise ([http://www2.ece.rochester.edu/~zduan/is2012/examples.html](http://www2.ece.rochester.edu/~zduan/is2012/examples.html))
   - <em>Duan, Zhiyao, Gautham J. Mysore, and Paris Smaragdis. "Speech enhancement by online non-negative spectrogram decomposition in nonstationary noise environments." In Thirteenth Annual Conference of the International Speech Communication Association. 2012.</em>
 ## Model training
-Main parameters and their default setting for training the model are:
+Main hyper-parameters and their default setting for training the model are:
 | Symbol | Description |
 | --- | ----------- |
 | filters = 100           |  Output channel size of encoder|
